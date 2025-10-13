@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import FinancialChart from './components/FinancialChart';
+import Requirements from './components/Requirements';
 import './App.css';
 
 const API_BASE = 'http://127.0.0.1:8000';
@@ -10,6 +11,7 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [currentView, setCurrentView] = useState('dashboard'); // 'dashboard' o 'requirements'
   const [chatMessages, setChatMessages] = useState([
     { type: 'bot', text: 'Bienvenido al Sistema de Análisis Financiero. Estoy aquí para ayudarte a interpretar tus indicadores financieros.' }
   ]);
@@ -73,37 +75,37 @@ function App() {
   };
 
   const handleSendMessage = async () => {
-  if (!userInput.trim()) return;
-  
-  addChatMessage('user', userInput);
-  const currentInput = userInput;
-  setUserInput('');
-  
-  try {
-    const response = await fetch(`${API_BASE}/chat`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        message: currentInput,
-        financial_data: financialData
-      }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.detail || 'Error en la respuesta del servidor');
-    }
-
-    const data = await response.json();
-    addChatMessage('bot', data.response);
+    if (!userInput.trim()) return;
     
-  } catch (error) {
-    console.error('Error:', error);
-    addChatMessage('bot', 'Lo siento, hubo un error al procesar tu mensaje. Por favor, intenta nuevamente.');
-  }
-};
+    addChatMessage('user', userInput);
+    const currentInput = userInput;
+    setUserInput('');
+    
+    try {
+      const response = await fetch(`${API_BASE}/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: currentInput,
+          financial_data: financialData
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Error en la respuesta del servidor');
+      }
+
+      const data = await response.json();
+      addChatMessage('bot', data.response);
+      
+    } catch (error) {
+      console.error('Error:', error);
+      addChatMessage('bot', 'Lo siento, hubo un error al procesar tu mensaje. Por favor, intenta nuevamente.');
+    }
+  };
 
   const formatIndicatorValue = (indicatorName, value) => {
     if (value === undefined || value === null) return 'No disponible';
@@ -200,7 +202,12 @@ function App() {
             <div className="nav-section">
               <h3>Análisis</h3>
               <ul>
-                <li className="active">Dashboard Principal</li>
+                <li 
+                  className={currentView === 'dashboard' ? 'active' : ''}
+                  onClick={() => setCurrentView('dashboard')}
+                >
+                  Dashboard Principal
+                </li>
                 <li>Indicadores Financieros</li>
                 <li>Análisis Comparativo</li>
                 <li>Proyecciones</li>
@@ -213,6 +220,19 @@ function App() {
                 <li>Reporte de Rentabilidad</li>
                 <li>Análisis Vertical</li>
                 <li>Análisis Horizontal</li>
+              </ul>
+            </div>
+            <div className="nav-section">
+              <h3>Sistema</h3>
+              <ul>
+                <li 
+                  className={currentView === 'requirements' ? 'active' : ''}
+                  onClick={() => setCurrentView('requirements')}
+                >
+                  📋 Requerimientos
+                </li>
+                <li>Configuración</li>
+                <li>Documentación</li>
               </ul>
             </div>
           </nav>
@@ -228,150 +248,155 @@ function App() {
 
         {/* Main Content */}
         <main className="main-content">
-          {error && (
-            <div className="error-alert">
-              <div className="alert-content">
-                <strong>Error:</strong> {error}
-              </div>
-            </div>
-          )}
+          {currentView === 'requirements' ? (
+            <Requirements />
+          ) : (
+            <>
+              {error && (
+                <div className="error-alert">
+                  <div className="alert-content">
+                    <strong>Error:</strong> {error}
+                  </div>
+                </div>
+              )}
 
-          {/* Dashboard Header */}
-          <section className="dashboard-header">
-            <div className="dashboard-title">
-              <h2>Dashboard de Análisis</h2>
-              <p>Indicadores financieros y métricas clave</p>
-            </div>
-            <div className="dashboard-controls">
-              <div className="year-filter">
-                <label>Periodo de análisis:</label>
-                <select 
-                  value={selectedYear} 
-                  onChange={(e) => setSelectedYear(e.target.value)}
-                  className="filter-select"
-                >
-                  {financialData?.available_years.map(year => (
-                    <option key={year} value={year.toString()}>
-                      {year}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </section>
+              {/* Dashboard Header */}
+              <section className="dashboard-header">
+                <div className="dashboard-title">
+                  <h2>Dashboard de Análisis</h2>
+                  <p>Indicadores financieros y métricas clave</p>
+                </div>
+                <div className="dashboard-controls">
+                  <div className="year-filter">
+                    <label>Periodo de análisis:</label>
+                    <select 
+                      value={selectedYear} 
+                      onChange={(e) => setSelectedYear(e.target.value)}
+                      className="filter-select"
+                    >
+                      {financialData?.available_years.map(year => (
+                        <option key={year} value={year.toString()}>
+                          {year}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </section>
 
-          {/* Indicators Grid */}
-          {financialData && (
-            <section className="indicators-section">
-              <div className="section-header">
-                <h3>Indicadores Financieros</h3>
-                <p>Resultados para el año {selectedYear}</p>
-              </div>
-              
-              <div className="indicators-grid">
-                {/* Liquidity Indicators */}
-                <div className="indicator-category">
-                  <h4 className="category-title">Indicadores de Liquidez</h4>
-                  <div className="category-cards">
-                    {financialData.indicators.liquidez && 
-                     Object.entries(financialData.indicators.liquidez).map(([key, values]) => (
-                      <div key={key} className="indicator-card">
-                        <div className="card-header">
-                          <h5>{getIndicatorLabel(key)}</h5>
-                          <span className="indicator-tag">Liquidez</span>
-                        </div>
-                        <div className="card-value">
-                          {formatIndicatorValue(key, values[selectedYear])}
-                        </div>
-                        <div className="card-description">
-                          {getIndicatorDescription(key)}
-                        </div>
+              {/* Indicators Grid */}
+              {financialData && (
+                <section className="indicators-section">
+                  <div className="section-header">
+                    <h3>Indicadores Financieros</h3>
+                    <p>Resultados para el año {selectedYear}</p>
+                  </div>
+                  
+                  <div className="indicators-grid">
+                    {/* Liquidity Indicators */}
+                    <div className="indicator-category">
+                      <h4 className="category-title">Indicadores de Liquidez</h4>
+                      <div className="category-cards">
+                        {financialData.indicators.liquidez && 
+                        Object.entries(financialData.indicators.liquidez).map(([key, values]) => (
+                          <div key={key} className="indicator-card">
+                            <div className="card-header">
+                              <h5>{getIndicatorLabel(key)}</h5>
+                              <span className="indicator-tag">Liquidez</span>
+                            </div>
+                            <div className="card-value">
+                              {formatIndicatorValue(key, values[selectedYear])}
+                            </div>
+                            <div className="card-description">
+                              {getIndicatorDescription(key)}
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                </div>
+                    </div>
 
-                {/* Profitability Indicators */}
-                <div className="indicator-category">
-                  <h4 className="category-title">Indicadores de Rentabilidad</h4>
-                  <div className="category-cards">
-                    {financialData.indicators.rentabilidad && 
-                     Object.entries(financialData.indicators.rentabilidad).map(([key, values]) => (
-                      <div key={key} className="indicator-card">
-                        <div className="card-header">
-                          <h5>{getIndicatorLabel(key)}</h5>
-                          <span className="indicator-tag">Rentabilidad</span>
-                        </div>
-                        <div className="card-value">
-                          {formatIndicatorValue(key, values[selectedYear])}
-                        </div>
-                        <div className="card-description">
-                          {getIndicatorDescription(key)}
-                        </div>
+                    {/* Profitability Indicators */}
+                    <div className="indicator-category">
+                      <h4 className="category-title">Indicadores de Rentabilidad</h4>
+                      <div className="category-cards">
+                        {financialData.indicators.rentabilidad && 
+                        Object.entries(financialData.indicators.rentabilidad).map(([key, values]) => (
+                          <div key={key} className="indicator-card">
+                            <div className="card-header">
+                              <h5>{getIndicatorLabel(key)}</h5>
+                              <span className="indicator-tag">Rentabilidad</span>
+                            </div>
+                            <div className="card-value">
+                              {formatIndicatorValue(key, values[selectedYear])}
+                            </div>
+                            <div className="card-description">
+                              {getIndicatorDescription(key)}
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    </div>
+                  </div>
+                </section>
+              )}
+
+              {/* Charts Section */}
+              <section className="charts-section">
+                <div className="section-header">
+                  <h3>Visualizaciones</h3>
+                  <p>Evolución temporal de indicadores clave</p>
+                </div>
+                <div className="charts-grid">
+                  <div className="chart-card">
+                    <div className="chart-header">
+                      <h4>Evolución de Liquidez</h4>
+                      <p>Razón Corriente y Prueba Ácida a través del tiempo</p>
+                    </div>
+                    <FinancialChart 
+                      data={financialData} 
+                      type="liquidity" 
+                      title="Indicadores de Liquidez"
+                    />
+                  </div>
+                  <div className="chart-card">
+                    <div className="chart-header">
+                      <h4>Rentabilidad Histórica</h4>
+                      <p>ROE, ROA y Margen Bruto en porcentaje</p>
+                    </div>
+                    <FinancialChart 
+                      data={financialData} 
+                      type="profitability" 
+                      title="Indicadores de Rentabilidad"
+                    />
                   </div>
                 </div>
-              </div>
-            </section>
-          )}
+              </section>
 
-          {/* Charts Section */}
-          <section className="charts-section">
-            <div className="section-header">
-              <h3>Visualizaciones</h3>
-              <p>Evolución temporal de indicadores clave</p>
-            </div>
-            <div className="charts-grid">
-              <div className="chart-card">
-                <div className="chart-header">
-                  <h4>Evolución de Liquidez</h4>
-                  <p>Razón Corriente y Prueba Ácida a través del tiempo</p>
-                </div>
-                <FinancialChart 
-                  data={financialData} 
-                  type="liquidity" 
-                  title="Indicadores de Liquidez"
-                />
-              </div>
-              <div className="chart-card">
-                <div className="chart-header">
-                  <h4>Rentabilidad Histórica</h4>
-                  <p>ROE, ROA y Margen Bruto en porcentaje</p>
-                </div>
-                <FinancialChart 
-                  data={financialData} 
-                  type="profitability" 
-                  title="Indicadores de Rentabilidad"
-                />
-              </div>
-            </div>
-          </section>
-
-          
-          {/* Data Summary */}
-          {financialData && (
-            <section className="summary-section">
-              <div className="summary-cards">
-                <div className="summary-card">
-                  <h4>Periodos Analizados</h4>
-                  <div className="summary-value">
-                    {financialData.available_years.length}
+              {/* Data Summary */}
+              {financialData && (
+                <section className="summary-section">
+                  <div className="summary-cards">
+                    <div className="summary-card">
+                      <h4>Periodos Analizados</h4>
+                      <div className="summary-value">
+                        {financialData.available_years.length}
+                      </div>
+                      <p>Años de datos financieros</p>
+                    </div>
+                    <div className="summary-card">
+                      <h4>Indicadores Calculados</h4>
+                      <div className="summary-value">6</div>
+                      <p>Métricas clave</p>
+                    </div>
+                    <div className="summary-card">
+                      <h4>Última Actualización</h4>
+                      <div className="summary-value">Ahora</div>
+                      <p>Datos en tiempo real</p>
+                    </div>
                   </div>
-                  <p>Años de datos financieros</p>
-                </div>
-                <div className="summary-card">
-                  <h4>Indicadores Calculados</h4>
-                  <div className="summary-value">6</div>
-                  <p>Métricas clave</p>
-                </div>
-                <div className="summary-card">
-                  <h4>Última Actualización</h4>
-                  <div className="summary-value">Ahora</div>
-                  <p>Datos en tiempo real</p>
-                </div>
-              </div>
-            </section>
+                </section>
+              )}
+            </>
           )}
         </main>
 
