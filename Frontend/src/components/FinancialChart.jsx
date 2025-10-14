@@ -1,3 +1,5 @@
+import annotationPlugin from 'chartjs-plugin-annotation';
+ChartJS.register(annotationPlugin);
 import React from 'react';
 import {
   Chart as ChartJS,
@@ -25,7 +27,7 @@ ChartJS.register(
   ArcElement
 );
 
-const FinancialChart = ({ data, type = 'line', title }) => {
+const FinancialChart = ({ data, type = 'liquidity', title }) => {
   if (!data || !data.available_years || data.available_years.length === 0) {
     return (
       <div className="chart-container">
@@ -92,7 +94,24 @@ const FinancialChart = ({ data, type = 'line', title }) => {
     ],
   };
 
-  const options = {
+  // Preparar datos para Z-Score
+  const zscoreData = {
+    labels: available_years,
+    datasets: [
+      {
+        label: 'Z-Score',
+        data: available_years.map(year => indicators.quiebra?.z_score?.[year] || 0),
+        borderColor: 'rgb(139, 92, 246)',
+        backgroundColor: 'rgba(139, 92, 246, 0.2)',
+        tension: 0.4,
+        borderWidth: 3,
+        pointRadius: 6,
+        pointHoverRadius: 8,
+      },
+    ],
+  };
+
+  const baseOptions = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
@@ -158,11 +177,11 @@ const FinancialChart = ({ data, type = 'line', title }) => {
     liquidity: {
       data: liquidityData,
       options: {
-        ...options,
+        ...baseOptions,
         scales: {
-          ...options.scales,
+          ...baseOptions.scales,
           y: {
-            ...options.scales.y,
+            ...baseOptions.scales.y,
             title: {
               display: true,
               text: 'Ratio',
@@ -173,16 +192,17 @@ const FinancialChart = ({ data, type = 'line', title }) => {
             }
           },
         },
-      }
+      },
+      chartType: 'line'
     },
     profitability: {
       data: profitabilityData,
       options: {
-        ...options,
+        ...baseOptions,
         scales: {
-          ...options.scales,
+          ...baseOptions.scales,
           y: {
-            ...options.scales.y,
+            ...baseOptions.scales.y,
             title: {
               display: true,
               text: 'Porcentaje (%)',
@@ -193,20 +213,76 @@ const FinancialChart = ({ data, type = 'line', title }) => {
             }
           },
         },
-      }
+      },
+      chartType: 'line'
+    },
+    zscore: {
+      data: zscoreData,
+      options: {
+        ...baseOptions,
+        scales: {
+          ...baseOptions.scales,
+          y: {
+            ...baseOptions.scales.y,
+            min: 0,
+            max: 5,
+            title: {
+              display: true,
+              text: 'Z-Score',
+              font: {
+                size: 12,
+                weight: 'bold'
+              }
+            }
+          },
+        },
+        plugins: {
+          ...baseOptions.plugins,
+          annotation: {
+            annotations: {
+              line1: {
+                type: 'line',
+                yMin: 2.99,
+                yMax: 2.99,
+                borderColor: 'rgb(16, 185, 129)',
+                borderWidth: 2,
+                borderDash: [5, 5],
+                label: {
+                  display: true,
+                  content: 'Zona Segura (> 2.99)',
+                  position: 'end'
+                }
+              },
+              line2: {
+                type: 'line',
+                yMin: 1.81,
+                yMax: 1.81,
+                borderColor: 'rgb(245, 158, 11)',
+                borderWidth: 2,
+                borderDash: [5, 5],
+                label: {
+                  display: true,
+                  content: 'Zona Gris (1.81 - 2.99)',
+                  position: 'end'
+                }
+              }
+            }
+          }
+        }
+      },
+      chartType: 'line'
     }
   };
 
-  const config = chartConfigs[type] || { data: liquidityData, options };
+  const config = chartConfigs[type] || chartConfigs.liquidity;
 
   const renderChart = () => {
-    switch (type) {
-      case 'bar':
-        return <Bar data={config.data} options={config.options} />;
-      case 'doughnut':
-        return <Doughnut data={config.data} options={config.options} />;
-      default:
-        return <Line data={config.data} options={config.options} />;
+    if (config.chartType === 'bar') {
+      return <Bar data={config.data} options={config.options} />;
+    } else if (config.chartType === 'doughnut') {
+      return <Doughnut data={config.data} options={config.options} />;
+    } else {
+      return <Line data={config.data} options={config.options} />;
     }
   };
 

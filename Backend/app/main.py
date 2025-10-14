@@ -85,18 +85,74 @@ async def upload_file(file: UploadFile = File(...)):
         contents = await file.read()
         df = pd.read_excel(io.BytesIO(contents))
         
+        print(f"\n{'='*60}")
+        print(f"📄 Archivo recibido: {file.filename}")
+        print(f"📊 Dimensiones del DataFrame: {df.shape}")
+        print(f"📋 Primeras columnas: {df.columns.tolist()[:5]}")
+        print(f"{'='*60}\n")
+        
         analysis_result = analysis_service.analyze_financial_data(df)
+        
+        # Verificar que el análisis fue exitoso
+        if not analysis_result or not analysis_result.get('available_years'):
+            raise HTTPException(
+                status_code=400, 
+                detail="No se pudieron extraer datos del archivo. Verifica que el formato sea correcto."
+            )
+        
         analysis_result["filename"] = file.filename
         analysis_result["upload_date"] = datetime.now().isoformat()
         analysis_result["message"] = "Análisis financiero completado exitosamente"
+        
+        # DEBUG: Imprimir estructura de respuesta
+        print(f"\n{'='*60}")
+        print("📤 ESTRUCTURA DE RESPUESTA:")
+        print(f"Years disponibles: {analysis_result.get('available_years', [])}")
+        
+        if 'indicators' in analysis_result:
+            print("\n📊 INDICADORES POR CATEGORÍA:")
+            for indicator_type, indicators in analysis_result['indicators'].items():
+                print(f"\n  📌 {indicator_type.upper()}:")
+                for name, values in list(indicators.items())[:3]:  # Mostrar primeros 3
+                    print(f"    - {name}: {values}")
+        
+        print(f"{'='*60}\n")
         
         # Guardar para exportación
         last_analysis = analysis_result
         
         return analysis_result
         
+    except HTTPException:
+        raise
     except Exception as e:
+        print(f"\n❌ ERROR en upload: {str(e)}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error procesando archivo: {str(e)}")
+
+@app.get("/analysis/{analysis_type}")
+def get_analysis(analysis_type: str):
+    """Obtener análisis horizontal o vertical"""
+    global last_analysis
+    
+    if not last_analysis:
+        raise HTTPException(status_code=400, detail="No hay datos disponibles. Carga un archivo primero.")
+    
+    if analysis_type == "horizontal":
+        return {
+            "type": "horizontal",
+            "data": last_analysis.get("horizontal_analysis", {}),
+            "available_years": last_analysis.get("available_years", [])
+        }
+    elif analysis_type == "vertical":
+        return {
+            "type": "vertical",
+            "data": last_analysis.get("vertical_analysis", {}),
+            "available_years": last_analysis.get("available_years", [])
+        }
+    else:
+        raise HTTPException(status_code=400, detail="Tipo de análisis no válido. Use 'horizontal' o 'vertical'")
 
 @app.get("/test-data")
 def get_test_data():

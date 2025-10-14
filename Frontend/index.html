@@ -9,5 +9,51 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    <!-- <script>
+  // Script para hacer el chat draggable
+  (function() {
+    let isDragging = false;
+    let currentChat = null;
+    let offsetX = 0;
+    let offsetY = 0;
+
+    document.addEventListener('mousedown', function(e) {
+      const chat = document.querySelector('.chat-floating.draggable-mode');
+      if (!chat) return;
+      
+      const header = e.target.closest('.chat-header');
+      if (header && chat.contains(header)) {
+        isDragging = true;
+        currentChat = chat;
+        
+        const rect = chat.getBoundingClientRect();
+        offsetX = e.clientX - rect.left;
+        offsetY = e.clientY - rect.top;
+        
+        e.preventDefault();
+      }
+    });
+
+    document.addEventListener('mousemove', function(e) {
+      if (!isDragging || !currentChat) return;
+      
+      const x = e.clientX - offsetX;
+      const y = e.clientY - offsetY;
+      
+      const maxX = window.innerWidth - currentChat.offsetWidth;
+      const maxY = window.innerHeight - currentChat.offsetHeight;
+      
+      currentChat.style.left = Math.max(0, Math.min(x, maxX)) + 'px';
+      currentChat.style.top = Math.max(0, Math.min(y, maxY)) + 'px';
+      currentChat.style.bottom = 'auto';
+      currentChat.style.right = 'auto';
+    });
+
+    document.addEventListener('mouseup', function() {
+      isDragging = false;
+      currentChat = null;
+    });
+  })();
+</script> -->
   </body>
 </html>
