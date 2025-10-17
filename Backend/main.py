@@ -266,10 +266,13 @@ async def chat_with_ai(message: dict):
             response = client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=[
-                    {"role": "system", "content": "Eres un asistente especializado en análisis financiero. Responde de forma clara y profesional."},
+                    {
+                        "role": "system", 
+                        "content": "Eres un asistente especializado en análisis financiero. Responde SIEMPRE en máximo 25 palabras de forma concisa, clara y directa."
+                    },
                     {"role": "user", "content": f"{context}\n\nPregunta: {user_message}"}
                 ],
-                max_tokens=500,
+                max_tokens=50,
                 temperature=0.7
             )
 
