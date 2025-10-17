@@ -7,6 +7,7 @@ import io
 import os
 from dotenv import load_dotenv
 from datetime import datetime
+import uvicorn
 
 load_dotenv()
 
@@ -15,6 +16,7 @@ from app.services.export_service import ExportService
 
 app = FastAPI(title="Financial Analysis API")
 
+# CORS actualizado para incluir tu dominio de Vercel
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -22,6 +24,8 @@ app.add_middleware(
         "http://localhost:3000", 
         "http://127.0.0.1:5173",
         "http://127.0.0.1:3000",
+        "https://*.vercel.app",  # Permite todos los dominios de Vercel
+        "https://financial-analysis-system.vercel.app",  # Tu dominio específico (actualiza esto)
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -311,3 +315,13 @@ async def chat_with_ai(message: dict):
             "status": "success",
             "source": "error_fallback"
         }
+
+# Punto de entrada para Render
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=port,
+        reload=False
+    )
