@@ -286,17 +286,19 @@ async def chat_with_ai(message: dict):
         
         else:
             responses = {
-                "liquidez": "Basándome en tus indicadores de liquidez, la empresa muestra capacidad para cumplir con obligaciones a corto plazo. La razón corriente ideal está entre 1.5 y 2.0.",
-                "rentabilidad": "Los indicadores de rentabilidad muestran el desempeño de la empresa. ROE mide rentabilidad sobre capital, ROA sobre activos totales.",
-                "endeudamiento": "Los indicadores de endeudamiento evalúan la estructura de deuda. Un endeudamiento total sobre 60% se considera alto.",
-                "rotacion": "Los indicadores de rotación miden la eficiencia en el uso de activos. Mayor rotación indica mejor gestión operativa.",
-                "quiebra": "El Z-Score de Altman predice probabilidad de quiebra. Mayor a 2.99 es zona segura, entre 1.81-2.99 es zona gris, menor a 1.81 es zona de peligro.",
-                "z-score": "El Z-Score combina múltiples ratios financieros. Es una herramienta confiable para evaluar salud financiera empresarial.",
-                "exportar": "Puedes exportar el análisis completo a Excel usando el botón de exportación. Incluye todas las hojas con indicadores y análisis.",
-                "horizontal": "El análisis horizontal compara estados financieros entre períodos, mostrando variaciones absolutas y porcentuales.",
-                "vertical": "El análisis vertical muestra la estructura porcentual de cada cuenta sobre el total, facilitando comparaciones.",
-                "hola": "¡Hola! Soy tu asistente de análisis financiero. Puedo explicarte indicadores y analizar tus datos.",
+                "liquidez": "Tu liquidez es adecuada si la razón corriente está entre 1.5-2.0. Valores menores indican riesgo.",
+                "rentabilidad": "ROE mide rentabilidad sobre capital; ROA sobre activos totales. Mayores valores son mejores.",
+                "endeudamiento": "Endeudamiento sobre 60% se considera alto. Indica mayor riesgo financiero.",
+                "rotacion": "Mayor rotación indica mejor gestión operativa. Mide eficiencia en uso de activos.",
+                "quiebra": "Z-Score >2.99 es seguro, 1.81-2.99 es zona gris, <1.81 es peligro.",
+                "z-score": "Z-Score combina múltiples ratios. Es confiable para evaluar salud financiera.",
+                "exportar": "Usa el botón de exportación para descargar el análisis completo en Excel.",
+                "horizontal": "Análisis horizontal compara estados financieros entre períodos, muestra variaciones.",
+                "vertical": "Análisis vertical muestra estructura porcentual sobre el total para comparar.",
+                "hola": "Hola! Soy tu asistente financiero. ¿Qué deseas saber?",
             }
+
+            response = "Puedo ayudarte con conceptos financieros. ¿Preguntas sobre indicadores?"
             
             response = "Puedo ayudarte a entender conceptos financieros. ¿Tienes alguna pregunta específica sobre tus indicadores?"
             
