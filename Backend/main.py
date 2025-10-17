@@ -25,7 +25,7 @@ app.add_middleware(
         "http://127.0.0.1:5173",
         "http://127.0.0.1:3000",
         "https://*.vercel.app",  # Permite todos los dominios de Vercel
-        "https://financial-analysis-system.vercel.app",  # Tu dominio específico (actualiza esto)
+        "https://financial-analysis-system-two.vercel.app",  # Tu dominio específico (actualiza esto)
     ],
     allow_credentials=True,
     allow_methods=["*"],

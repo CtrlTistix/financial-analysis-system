@@ -6,7 +6,7 @@ import Requirements from './components/Requirements';
 import ChatWindow from './components/ChatWindow';
 import './App.css';
 
-const API_BASE = 'http://127.0.0.1:8000';
+const API_BASE = 'https://financial-analysis-system-qhnz.onrender.com';
 
 // Iconos SVG
 const Icons = {
