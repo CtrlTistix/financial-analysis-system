@@ -1,4 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
+import Login from './pages/Login';
+import AdminPanel from './pages/AdminPanel';
 import FinancialChart from './components/FinancialChart';
 import AdditionalCharts from './components/AdditionalCharts';
 import AnalysisView from './components/AnalysisView';
@@ -91,9 +96,25 @@ const Icons = {
       <polyline points="13 2 13 9 20 9"></polyline>
     </svg>
   ),
+  User: () => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+      <circle cx="12" cy="7" r="4"></circle>
+    </svg>
+  ),
+  LogOut: () => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+      <polyline points="16 17 21 12 16 7"></polyline>
+      <line x1="21" y1="12" x2="9" y2="12"></line>
+    </svg>
+  ),
 };
 
-function App() {
+// Componente principal de la aplicación
+function MainApp() {
+  const { user, isAuthenticated, logout, api } = useAuth();
+  
   const [financialData, setFinancialData] = useState(null);
   const [selectedYear, setSelectedYear] = useState('');
   const [loading, setLoading] = useState(false);
@@ -102,7 +123,7 @@ function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [currentView, setCurrentView] = useState('dashboard');
   const [chatOpen, setChatOpen] = useState(false);
-  const [chatMode, setChatMode] = useState('fixed'); // 'fixed' o 'floating'
+  const [chatMode, setChatMode] = useState('fixed');
   const [chatMinimized, setChatMinimized] = useState(false);
   const [chatMessages, setChatMessages] = useState([
     { type: 'bot', text: 'Bienvenido al Sistema de Análisis Financiero. Estoy aquí para ayudarte a interpretar tus indicadores financieros.' }
@@ -112,7 +133,6 @@ function App() {
   useEffect(() => {
     fetchTestData();
     
-    // Detectar tamaño de pantalla
     const handleResize = () => {
       if (window.innerWidth < 992) {
         setSidebarCollapsed(false);
@@ -148,31 +168,36 @@ function App() {
     const file = event.target.files[0];
     if (!file) return;
 
+    // Verificar autenticación
+    if (!isAuthenticated) {
+      setError('Debes iniciar sesión para cargar archivos');
+      addChatMessage('bot', 'Por favor inicia sesión para cargar archivos Excel.');
+      return;
+    }
+
     try {
       setLoading(true);
       setError('');
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await fetch(`${API_BASE}/upload`, {
-        method: 'POST',
-        body: formData,
+      // Usar api con autenticación
+      const response = await api.post('/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || `Error ${response.status}`);
-      }
-
-      const result = await response.json();
+      const result = response.data;
       setFinancialData(result);
       setSelectedYear(result.available_years[0]?.toString() || '');
       addChatMessage('bot', `Archivo ${file.name} procesado exitosamente. Se encontraron ${result.available_years.length} años de datos.`);
       
     } catch (err) {
       console.error('Error completo:', err);
-      setError(`Error procesando archivo: ${err.message}`);
-      addChatMessage('bot', `Error al procesar el archivo: ${err.message}`);
+      const errorMsg = err.response?.data?.detail || err.message || 'Error desconocido';
+      setError(`Error procesando archivo: ${errorMsg}`);
+      addChatMessage('bot', `Error al procesar el archivo: ${errorMsg}`);
     } finally {
       setLoading(false);
       event.target.value = '';
@@ -186,34 +211,67 @@ function App() {
   const handleSendMessage = async () => {
     if (!userInput.trim()) return;
     
+    // Verificar autenticación
+    if (!isAuthenticated) {
+      addChatMessage('bot', 'Debes iniciar sesión para usar el chat.');
+      return;
+    }
+    
     addChatMessage('user', userInput);
     const currentInput = userInput;
     setUserInput('');
     
     try {
-      const response = await fetch(`${API_BASE}/chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message: currentInput,
-          financial_data: financialData
-        }),
+      const response = await api.post('/chat', {
+        message: currentInput,
+        financial_data: financialData
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Error en la respuesta del servidor');
-      }
-
-      const data = await response.json();
+      const data = response.data;
       addChatMessage('bot', data.response);
       
     } catch (error) {
       console.error('Error:', error);
       addChatMessage('bot', 'Lo siento, hubo un error al procesar tu mensaje.');
     }
+  };
+
+  const handleExport = async () => {
+    if (!isAuthenticated) {
+      setError('Debes iniciar sesión para exportar');
+      addChatMessage('bot', 'Por favor inicia sesión para exportar reportes.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await api.get('/export/excel', {
+        responseType: 'blob'
+      });
+
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `analisis_financiero_${new Date().toISOString().split('T')[0]}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      
+      addChatMessage('bot', 'Reporte exportado exitosamente.');
+    } catch (error) {
+      console.error('Error exportando:', error);
+      setError('Error al exportar el archivo');
+      addChatMessage('bot', 'Error al exportar el reporte.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    setCurrentView('dashboard');
+    addChatMessage('bot', 'Sesión cerrada correctamente.');
   };
 
   const formatIndicatorValue = (indicatorName, value) => {
@@ -402,26 +460,81 @@ function App() {
           </div>
 
           <div className="header-actions">
-            <input
-              type="file"
-              accept=".xlsx,.xls"
-              onChange={handleFileUpload}
-              disabled={loading}
-              className="file-input"
-              id="file-upload"
-            />
-            <label htmlFor="file-upload" className="upload-btn">
-              <Icons.Upload />
-              <span>Cargar Excel</span>
-            </label>
-            
-            <button 
-              className={`chat-toggle-btn ${chatOpen ? 'active' : ''}`}
-              onClick={() => setChatOpen(!chatOpen)}
-              title="Abrir chat"
-            >
-              <Icons.Chat />
-            </button>
+            {/* Mostrar info del usuario si está autenticado */}
+            {isAuthenticated && user && (
+              <div className="user-info" style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '0.5rem',
+                marginRight: '1rem',
+                padding: '0.5rem 1rem',
+                background: '#f7fafc',
+                borderRadius: '8px'
+              }}>
+                <Icons.User />
+                <span style={{ fontWeight: 600 }}>{user.username}</span>
+                {user.role === 'admin' && (
+                  <span style={{
+                    background: '#667eea',
+                    color: 'white',
+                    padding: '0.25rem 0.5rem',
+                    borderRadius: '4px',
+                    fontSize: '0.75rem',
+                    fontWeight: 600
+                  }}>Admin</span>
+                )}
+              </div>
+            )}
+
+            {isAuthenticated ? (
+              <>
+                <input
+                  type="file"
+                  accept=".xlsx,.xls"
+                  onChange={handleFileUpload}
+                  disabled={loading}
+                  className="file-input"
+                  id="file-upload"
+                />
+                <label htmlFor="file-upload" className="upload-btn">
+                  <Icons.Upload />
+                  <span>Cargar Excel</span>
+                </label>
+
+                <button 
+                  onClick={handleExport} 
+                  className="upload-btn" 
+                  title="Exportar a Excel"
+                  disabled={!financialData}
+                >
+                  <Icons.File />
+                  <span>Exportar</span>
+                </button>
+                
+                <button 
+                  className={`chat-toggle-btn ${chatOpen ? 'active' : ''}`}
+                  onClick={() => setChatOpen(!chatOpen)}
+                  title="Abrir chat"
+                >
+                  <Icons.Chat />
+                </button>
+
+                <button 
+                  className="upload-btn"
+                  onClick={handleLogout}
+                  title="Cerrar sesión"
+                  style={{ background: '#fc8181' }}
+                >
+                  <Icons.LogOut />
+                  <span>Salir</span>
+                </button>
+              </>
+            ) : (
+              <a href="/login" className="upload-btn">
+                <Icons.User />
+                <span>Iniciar Sesión</span>
+              </a>
+            )}
           </div>
         </div>
       </header>
@@ -512,6 +625,25 @@ function App() {
                 </li>
               </ul>
             </div>
+
+            {/* Agregar opción de Admin si es admin */}
+            {isAuthenticated && user?.role === 'admin' && (
+              <div className="nav-section">
+                <h3>Administración</h3>
+                <ul>
+                  <li>
+                    <div
+                      className={`nav-item ${currentView === 'admin' ? 'active' : ''}`}
+                      onClick={() => handleNavClick('admin')}
+                      data-tooltip="Panel de Administración"
+                    >
+                      <span className="nav-icon"><Icons.User /></span>
+                      <span className="nav-text">Gestión de Usuarios</span>
+                    </div>
+                  </li>
+                </ul>
+              </div>
+            )}
           </nav>
         </aside>
 
@@ -525,7 +657,10 @@ function App() {
 
         {/* Main Content */}
         <main className={`main-content ${chatOpen && chatMode === 'fixed' ? 'with-chat' : ''}`}>
-          {currentView === 'requirements' ? (
+          {/* Mostrar AdminPanel si es admin y está en esa vista */}
+          {currentView === 'admin' ? (
+            <AdminPanel />
+          ) : currentView === 'requirements' ? (
             <Requirements />
           ) : currentView === 'horizontal' ? (
             <AnalysisView data={financialData} />
@@ -793,8 +928,9 @@ function App() {
                 onChange={(e) => setUserInput(e.target.value)}
                 placeholder="Escribe tu pregunta..."
                 onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                disabled={!isAuthenticated}
               />
-              <button onClick={handleSendMessage}>
+              <button onClick={handleSendMessage} disabled={!isAuthenticated}>
                 <Icons.Send />
               </button>
             </div>
@@ -841,8 +977,9 @@ function App() {
                     onChange={(e) => setUserInput(e.target.value)}
                     placeholder="Escribe tu pregunta..."
                     onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                    disabled={!isAuthenticated}
                   />
-                  <button onClick={handleSendMessage}>
+                  <button onClick={handleSendMessage} disabled={!isAuthenticated}>
                     <Icons.Send />
                   </button>
                 </div>
@@ -852,6 +989,20 @@ function App() {
         )}
       </div>
     </div>
+  );
+}
+
+// Wrapper principal con Router y AuthProvider
+function App() {
+  return (
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/*" element={<MainApp />} />
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
 

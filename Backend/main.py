@@ -1,6 +1,8 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException
+
+from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+from sqlalchemy.orm import Session
 import pandas as pd
 from typing import Dict
 import io
@@ -14,6 +16,13 @@ load_dotenv()
 from app.services.analysis_service import AnalysisService
 from app.services.export_service import ExportService
 
+# Importar sistema de autenticación
+from app.database import init_db, get_db
+from app.auth_routes import router as auth_router
+from app.user_routes import router as user_router
+from app.dependencies import get_current_active_user
+from app.models import User
+
 app = FastAPI(title="Financial Analysis API")
 
 # CORS actualizado para incluir tu dominio de Vercel
@@ -24,13 +33,21 @@ app.add_middleware(
         "http://localhost:3000", 
         "http://127.0.0.1:5173",
         "http://127.0.0.1:3000",
-        "https://*.vercel.app",  # Permite todos los dominios de Vercel
-        "https://financial-analysis-system-two.vercel.app",  # Tu dominio específico (actualiza esto)
+        "https://*.vercel.app",
+        "https://financial-analysis-system-two.vercel.app",
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Inicializar base de datos al inicio
+@app.on_event("startup")
+async def startup_event():
+    """Inicializar base de datos al arrancar"""
+    print("🚀 Iniciando Financial Analysis API...")
+    init_db()
+    print("✅ Base de datos inicializada")
 
 OPENAI_AVAILABLE = False
 client = None
@@ -57,6 +74,12 @@ export_service = ExportService()
 # Variable global para almacenar el último análisis
 last_analysis = None
 
+# ============ INCLUIR ROUTERS DE AUTENTICACIÓN ============
+app.include_router(auth_router)
+app.include_router(user_router)
+
+# ============ ENDPOINTS PÚBLICOS ============
+
 @app.get("/")
 def read_root():
     return {
@@ -64,6 +87,7 @@ def read_root():
         "status": "success",
         "openai_status": "available" if OPENAI_AVAILABLE else "fallback_mode",
         "version": "2.0",
+        "authentication": "enabled",
         "features": [
             "Indicadores de Liquidez",
             "Indicadores de Rentabilidad",
@@ -73,94 +97,15 @@ def read_root():
             "Análisis Horizontal",
             "Análisis Vertical",
             "Exportación a Excel",
-            "ChatBot con IA"
+            "ChatBot con IA",
+            "Sistema de Autenticación",
+            "Gestión de Usuarios"
         ]
     }
 
-@app.post("/upload")
-async def upload_file(file: UploadFile = File(...)):
-    """Endpoint para subir archivos Excel y analizarlos"""
-    global last_analysis
-    
-    try:
-        if not file.filename.endswith(('.xlsx', '.xls')):
-            raise HTTPException(status_code=400, detail="Solo se permiten archivos Excel")
-        
-        contents = await file.read()
-        df = pd.read_excel(io.BytesIO(contents))
-        
-        print(f"\n{'='*60}")
-        print(f"📄 Archivo recibido: {file.filename}")
-        print(f"📊 Dimensiones del DataFrame: {df.shape}")
-        print(f"📋 Primeras columnas: {df.columns.tolist()[:5]}")
-        print(f"{'='*60}\n")
-        
-        analysis_result = analysis_service.analyze_financial_data(df)
-        
-        # Verificar que el análisis fue exitoso
-        if not analysis_result or not analysis_result.get('available_years'):
-            raise HTTPException(
-                status_code=400, 
-                detail="No se pudieron extraer datos del archivo. Verifica que el formato sea correcto."
-            )
-        
-        analysis_result["filename"] = file.filename
-        analysis_result["upload_date"] = datetime.now().isoformat()
-        analysis_result["message"] = "Análisis financiero completado exitosamente"
-        
-        # DEBUG: Imprimir estructura de respuesta
-        print(f"\n{'='*60}")
-        print("📤 ESTRUCTURA DE RESPUESTA:")
-        print(f"Years disponibles: {analysis_result.get('available_years', [])}")
-        
-        if 'indicators' in analysis_result:
-            print("\n📊 INDICADORES POR CATEGORÍA:")
-            for indicator_type, indicators in analysis_result['indicators'].items():
-                print(f"\n  📌 {indicator_type.upper()}:")
-                for name, values in list(indicators.items())[:3]:  # Mostrar primeros 3
-                    print(f"    - {name}: {values}")
-        
-        print(f"{'='*60}\n")
-        
-        # Guardar para exportación
-        last_analysis = analysis_result
-        
-        return analysis_result
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"\n❌ ERROR en upload: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Error procesando archivo: {str(e)}")
-
-@app.get("/analysis/{analysis_type}")
-def get_analysis(analysis_type: str):
-    """Obtener análisis horizontal o vertical"""
-    global last_analysis
-    
-    if not last_analysis:
-        raise HTTPException(status_code=400, detail="No hay datos disponibles. Carga un archivo primero.")
-    
-    if analysis_type == "horizontal":
-        return {
-            "type": "horizontal",
-            "data": last_analysis.get("horizontal_analysis", {}),
-            "available_years": last_analysis.get("available_years", [])
-        }
-    elif analysis_type == "vertical":
-        return {
-            "type": "vertical",
-            "data": last_analysis.get("vertical_analysis", {}),
-            "available_years": last_analysis.get("available_years", [])
-        }
-    else:
-        raise HTTPException(status_code=400, detail="Tipo de análisis no válido. Use 'horizontal' o 'vertical'")
-
 @app.get("/test-data")
 def get_test_data():
-    """Endpoint de prueba con datos mock para el frontend"""
+    """Endpoint de prueba con datos mock para el frontend - PÚBLICO"""
     return {
         "available_years": [2020, 2021, 2022, 2023],
         "indicators": {
@@ -197,18 +142,94 @@ def get_test_data():
         }
     }
 
+@app.get("/analysis/{analysis_type}")
+def get_analysis(analysis_type: str):
+    """Obtener análisis horizontal o vertical - PÚBLICO"""
+    global last_analysis
+    
+    if not last_analysis:
+        raise HTTPException(status_code=400, detail="No hay datos disponibles. Carga un archivo primero.")
+    
+    if analysis_type == "horizontal":
+        return {
+            "type": "horizontal",
+            "data": last_analysis.get("horizontal_analysis", {}),
+            "available_years": last_analysis.get("available_years", [])
+        }
+    elif analysis_type == "vertical":
+        return {
+            "type": "vertical",
+            "data": last_analysis.get("vertical_analysis", {}),
+            "available_years": last_analysis.get("available_years", [])
+        }
+    else:
+        raise HTTPException(status_code=400, detail="Tipo de análisis no válido. Use 'horizontal' o 'vertical'")
+
+# ============ ENDPOINTS PROTEGIDOS (REQUIEREN AUTENTICACIÓN) ============
+
+@app.post("/upload")
+async def upload_file(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Endpoint para subir archivos Excel y analizarlos - REQUIERE AUTENTICACIÓN"""
+    global last_analysis
+    
+    try:
+        if not file.filename.endswith(('.xlsx', '.xls')):
+            raise HTTPException(status_code=400, detail="Solo se permiten archivos Excel")
+        
+        contents = await file.read()
+        df = pd.read_excel(io.BytesIO(contents))
+        
+        print(f"\n{'='*60}")
+        print(f"📄 Archivo recibido: {file.filename}")
+        print(f"👤 Usuario: {current_user.username} ({current_user.role})")
+        print(f"📊 Dimensiones del DataFrame: {df.shape}")
+        print(f"📋 Primeras columnas: {df.columns.tolist()[:5]}")
+        print(f"{'='*60}\n")
+        
+        analysis_result = analysis_service.analyze_financial_data(df)
+        
+        if not analysis_result or not analysis_result.get('available_years'):
+            raise HTTPException(
+                status_code=400, 
+                detail="No se pudieron extraer datos del archivo. Verifica que el formato sea correcto."
+            )
+        
+        analysis_result["filename"] = file.filename
+        analysis_result["upload_date"] = datetime.now().isoformat()
+        analysis_result["uploaded_by"] = current_user.username
+        analysis_result["message"] = "Análisis financiero completado exitosamente"
+        
+        last_analysis = analysis_result
+        
+        return analysis_result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"\n❌ ERROR en upload: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Error procesando archivo: {str(e)}")
+
 @app.get("/export/excel")
-async def export_to_excel():
-    """Exportar análisis a Excel"""
+async def export_to_excel(
+    current_user: User = Depends(get_current_active_user)
+):
+    """Exportar análisis a Excel - REQUIERE AUTENTICACIÓN"""
     global last_analysis
     
     if not last_analysis:
         raise HTTPException(status_code=400, detail="No hay datos para exportar. Primero carga un archivo.")
     
     try:
+        print(f"📊 Exportando análisis para usuario: {current_user.username}")
+        
         excel_file = export_service.create_excel_report(last_analysis)
         
-        filename = f"analisis_financiero_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        filename = f"analisis_financiero_{current_user.username}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
         
         return StreamingResponse(
             excel_file,
@@ -220,14 +241,19 @@ async def export_to_excel():
         raise HTTPException(status_code=500, detail=f"Error generando Excel: {str(e)}")
 
 @app.post("/chat")
-async def chat_with_ai(message: dict):
-    """Endpoint para chat con IA"""
+async def chat_with_ai(
+    message: dict,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Endpoint para chat con IA - REQUIERE AUTENTICACIÓN"""
     try:
         user_message = message.get("message", "").lower()
         financial_data = message.get("financial_data", {})
         
         if not user_message:
             raise HTTPException(status_code=400, detail="El mensaje no puede estar vacío")
+
+        print(f"💬 Chat request from user: {current_user.username}")
 
         if OPENAI_AVAILABLE and client:
             context = ""
@@ -299,8 +325,6 @@ async def chat_with_ai(message: dict):
             }
 
             response = "Puedo ayudarte con conceptos financieros. ¿Preguntas sobre indicadores?"
-            
-            response = "Puedo ayudarte a entender conceptos financieros. ¿Tienes alguna pregunta específica sobre tus indicadores?"
             
             for key, resp in responses.items():
                 if key in user_message:
