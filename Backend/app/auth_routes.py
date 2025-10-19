@@ -14,7 +14,8 @@ from app.schemas import (
 )
 from app.dependencies import get_db, get_current_active_user, get_client_ip, get_user_agent
 from app.auth_service import AuthService, ACCESS_TOKEN_EXPIRE_MINUTES
-from app.models import User, ActionType
+from app.model import User, ActionType
+from app.schemas import LoginResponse, UserResponse
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 

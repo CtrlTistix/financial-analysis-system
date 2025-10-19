@@ -46,7 +46,7 @@ def init_db():
     Inicializar base de datos
     Crear todas las tablas si no existen
     """
-    from app.models import User, Session, AuditLog  # Importar modelos
+    from app.model import User, Session, AuditLog  # Importar modelos
     Base.metadata.create_all(bind=engine)
     print("✅ Database tables created successfully")
 

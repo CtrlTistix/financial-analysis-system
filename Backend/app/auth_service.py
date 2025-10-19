@@ -8,7 +8,7 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
-from app.models import User, Session as UserSession, AuditLog, UserRole, ActionType
+from app.model import User, Session as UserSession, AuditLog, UserRole, ActionType
 import secrets
 import os
 

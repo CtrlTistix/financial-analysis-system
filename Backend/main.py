@@ -21,7 +21,7 @@ from app.database import init_db, get_db
 from app.auth_routes import router as auth_router
 from app.user_routes import router as user_router
 from app.dependencies import get_current_active_user
-from app.models import User
+from app.model import User
 
 app = FastAPI(title="Financial Analysis API")
 
