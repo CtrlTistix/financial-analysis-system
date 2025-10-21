@@ -8,7 +8,7 @@ from typing import List
 from app.schemas import UserCreate, UserUpdate, UserResponse, MessageResponse
 from app.dependencies import get_db, get_current_admin_user, get_client_ip, get_user_agent
 from app.auth_service import AuthService
-from app.models import User, ActionType
+from app.model import User, ActionType
 
 router = APIRouter(prefix="/api/users", tags=["User Management"])
 
