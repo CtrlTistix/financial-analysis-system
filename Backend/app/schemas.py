@@ -13,48 +13,8 @@ class UserRoleEnum(str, Enum):
     ADMIN = "admin"
     CLIENT = "client"
 
-# ============ AUTH SCHEMAS ============
-
-class LoginRequest(BaseModel):
-    """Schema para solicitud de login"""
-    username: str = Field(..., min_length=3, max_length=80)
-    password: str = Field(..., min_length=6, max_length=100)
-
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "username": "admin",
-                "password": "admin123"
-            }
-        }
-
-class LoginResponse(BaseModel):
-    """Schema para respuesta de login"""
-    access_token: str
-    token_type: str = "bearer"
-    user: "UserResponse"
-    expires_in: int
-
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-                "token_type": "bearer",
-                "user": {
-                    "id": 1,
-                    "username": "admin",
-                    "email": "admin@example.com",
-                    "role": "admin"
-                },
-                "expires_in": 3600
-            }
-        }
-
-class RefreshTokenRequest(BaseModel):
-    """Schema para renovar token"""
-    refresh_token: str
-
 # ============ USER SCHEMAS ============
+# ⚠️ IMPORTANTE: UserResponse debe estar ANTES de LoginResponse
 
 class UserBase(BaseModel):
     """Base schema de usuario"""
@@ -62,6 +22,21 @@ class UserBase(BaseModel):
     email: EmailStr
     first_name: Optional[str] = Field(None, max_length=100)
     last_name: Optional[str] = Field(None, max_length=100)
+
+class UserResponse(BaseModel):
+    """Schema de respuesta de usuario"""
+    id: int
+    username: str
+    email: str
+    first_name: Optional[str]
+    last_name: Optional[str]
+    role: str
+    is_active: bool
+    created_at: datetime
+    last_login: Optional[datetime]
+
+    class Config:
+        from_attributes = True
 
 class UserCreate(UserBase):
     """Schema para crear usuario"""
@@ -98,20 +73,46 @@ class UserChangePassword(BaseModel):
     current_password: str
     new_password: str = Field(..., min_length=6, max_length=100)
 
-class UserResponse(BaseModel):
-    """Schema de respuesta de usuario"""
-    id: int
-    username: str
-    email: str
-    first_name: Optional[str]
-    last_name: Optional[str]
-    role: str
-    is_active: bool
-    created_at: datetime
-    last_login: Optional[datetime]
+# ============ AUTH SCHEMAS ============
+
+class LoginRequest(BaseModel):
+    """Schema para solicitud de login"""
+    username: str = Field(..., min_length=3, max_length=80)
+    password: str = Field(..., min_length=6, max_length=100)
 
     class Config:
-        from_attributes = True
+        json_schema_extra = {
+            "example": {
+                "username": "admin",
+                "password": "admin123"
+            }
+        }
+
+class LoginResponse(BaseModel):
+    """Schema para respuesta de login"""
+    access_token: str
+    token_type: str = "bearer"
+    user: UserResponse  # Ahora NO necesita comillas porque ya está definido arriba
+    expires_in: int
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                "token_type": "bearer",
+                "user": {
+                    "id": 1,
+                    "username": "admin",
+                    "email": "admin@example.com",
+                    "role": "admin"
+                },
+                "expires_in": 3600
+            }
+        }
+
+class RefreshTokenRequest(BaseModel):
+    """Schema para renovar token"""
+    refresh_token: str
 
 # ============ GENERAL RESPONSES ============
 
