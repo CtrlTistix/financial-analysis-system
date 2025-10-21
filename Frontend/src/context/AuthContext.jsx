@@ -9,7 +9,7 @@ import axios from 'axios';
 const AuthContext = createContext(null);
 
 // URL del backend (Render)
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_URL = import.meta.env.VITE_API_URL || 'https://financial-analysis-system-qhnz.onrender.com';
 
 // Configurar axios con interceptores
 const api = axios.create({
