@@ -1,304 +1,634 @@
+import io
 import pandas as pd
-from openpyxl import Workbook
-from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-from openpyxl.chart import BarChart, LineChart, Reference
-from io import BytesIO
-from typing import Dict, List
+from typing import Dict, List, Optional
+from datetime import datetime
+import xlsxwriter
+from xlsxwriter.utility import xl_col_to_name
+import json
+
 
 class ExportService:
+    """Servicio mejorado para exportación de análisis financieros"""
+    
     def __init__(self):
-        self.wb = None
+        self.company_name = "Análisis Financiero"
+        self.export_date = datetime.now()
+    
+    def create_excel_report(self, analysis_data: Dict, report_type: str = "complete") -> io.BytesIO:
+        """
+        Crea un reporte Excel completo con formato profesional
         
-    def create_excel_report(self, analysis_data: Dict) -> BytesIO:
-        """Crea un reporte completo en Excel"""
-        self.wb = Workbook()
-        self.wb.remove(self.wb.active)  # Remover hoja por defecto
+        Args:
+            analysis_data: Datos del análisis financiero
+            report_type: Tipo de reporte (complete, summary, indicators, analysis)
+        """
+        output = io.BytesIO()
+        workbook = xlsxwriter.Workbook(output, {'in_memory': True})
         
-        # Crear hojas
-        self._create_summary_sheet(analysis_data)
-        self._create_liquidity_sheet(analysis_data)
-        self._create_profitability_sheet(analysis_data)
-        self._create_debt_sheet(analysis_data)
-        self._create_rotation_sheet(analysis_data)
-        self._create_bankruptcy_sheet(analysis_data)
-        self._create_horizontal_analysis_sheet(analysis_data)
-        self._create_vertical_analysis_sheet(analysis_data)
+        # Definir estilos
+        styles = self._create_styles(workbook)
         
-        # Guardar en memoria
-        output = BytesIO()
-        self.wb.save(output)
+        # Generar diferentes tipos de reportes
+        if report_type == "complete":
+            self._create_complete_report(workbook, analysis_data, styles)
+        elif report_type == "summary":
+            self._create_summary_report(workbook, analysis_data, styles)
+        elif report_type == "indicators":
+            self._create_indicators_report(workbook, analysis_data, styles)
+        elif report_type == "analysis":
+            self._create_analysis_report(workbook, analysis_data, styles)
+        elif report_type == "comparative":
+            self._create_comparative_report(workbook, analysis_data, styles)
+        
+        workbook.close()
         output.seek(0)
-        
         return output
     
-    def _create_summary_sheet(self, data: Dict):
-        """Hoja de resumen ejecutivo"""
-        ws = self.wb.create_sheet("Resumen Ejecutivo", 0)
+    def _create_styles(self, workbook) -> Dict:
+        """Crea los estilos para el reporte"""
+        return {
+            'title': workbook.add_format({
+                'bold': True,
+                'font_size': 16,
+                'font_color': '#1a365d',
+                'align': 'center',
+                'valign': 'vcenter',
+                'bg_color': '#e6f2ff',
+                'border': 1
+            }),
+            'header': workbook.add_format({
+                'bold': True,
+                'font_size': 12,
+                'font_color': 'white',
+                'align': 'center',
+                'valign': 'vcenter',
+                'bg_color': '#2c5282',
+                'border': 1,
+                'text_wrap': True
+            }),
+            'subheader': workbook.add_format({
+                'bold': True,
+                'font_size': 11,
+                'align': 'left',
+                'bg_color': '#e6f2ff',
+                'border': 1
+            }),
+            'category': workbook.add_format({
+                'bold': True,
+                'font_size': 11,
+                'font_color': '#2c5282',
+                'bg_color': '#f7fafc',
+                'border': 1,
+                'left': 2
+            }),
+            'label': workbook.add_format({
+                'align': 'left',
+                'border': 1,
+                'text_wrap': True
+            }),
+            'number': workbook.add_format({
+                'num_format': '#,##0.00',
+                'align': 'right',
+                'border': 1
+            }),
+            'currency': workbook.add_format({
+                'num_format': '$#,##0',
+                'align': 'right',
+                'border': 1
+            }),
+            'percentage': workbook.add_format({
+                'num_format': '0.00%',
+                'align': 'right',
+                'border': 1
+            }),
+            'good': workbook.add_format({
+                'num_format': '#,##0.00',
+                'align': 'right',
+                'bg_color': '#c6f6d5',
+                'border': 1
+            }),
+            'warning': workbook.add_format({
+                'num_format': '#,##0.00',
+                'align': 'right',
+                'bg_color': '#fef5e7',
+                'border': 1
+            }),
+            'bad': workbook.add_format({
+                'num_format': '#,##0.00',
+                'align': 'right',
+                'bg_color': '#fed7d7',
+                'border': 1
+            }),
+            'info': workbook.add_format({
+                'italic': True,
+                'font_size': 9,
+                'font_color': '#718096',
+                'align': 'left'
+            })
+        }
+    
+    def _create_complete_report(self, workbook, data: Dict, styles: Dict):
+        """Crea un reporte completo con todas las secciones"""
+        # Portada
+        self._add_cover_page(workbook, data, styles)
+        
+        # Resumen Ejecutivo
+        self._add_executive_summary(workbook, data, styles)
+        
+        # Indicadores por categoría
+        self._add_liquidity_sheet(workbook, data, styles)
+        self._add_profitability_sheet(workbook, data, styles)
+        self._add_debt_sheet(workbook, data, styles)
+        self._add_rotation_sheet(workbook, data, styles)
+        self._add_bankruptcy_sheet(workbook, data, styles)
+        
+        # Análisis Horizontal
+        if data.get('horizontal_analysis'):
+            self._add_horizontal_analysis(workbook, data, styles)
+        
+        # Análisis Vertical
+        if data.get('vertical_analysis'):
+            self._add_vertical_analysis(workbook, data, styles)
+        
+        # Datos Crudos
+        self._add_raw_data(workbook, data, styles)
+    
+    def _create_summary_report(self, workbook, data: Dict, styles: Dict):
+        """Crea un reporte resumen ejecutivo"""
+        self._add_cover_page(workbook, data, styles)
+        self._add_executive_summary(workbook, data, styles)
+    
+    def _create_indicators_report(self, workbook, data: Dict, styles: Dict):
+        """Crea un reporte solo con indicadores"""
+        self._add_liquidity_sheet(workbook, data, styles)
+        self._add_profitability_sheet(workbook, data, styles)
+        self._add_debt_sheet(workbook, data, styles)
+        self._add_rotation_sheet(workbook, data, styles)
+        self._add_bankruptcy_sheet(workbook, data, styles)
+    
+    def _create_analysis_report(self, workbook, data: Dict, styles: Dict):
+        """Crea un reporte con análisis horizontal y vertical"""
+        if data.get('horizontal_analysis'):
+            self._add_horizontal_analysis(workbook, data, styles)
+        if data.get('vertical_analysis'):
+            self._add_vertical_analysis(workbook, data, styles)
+    
+    def _create_comparative_report(self, workbook, data: Dict, styles: Dict):
+        """Crea un reporte comparativo entre años"""
+        worksheet = workbook.add_worksheet('Comparativo')
+        worksheet.set_column('A:A', 30)
+        worksheet.set_column('B:Z', 15)
+        
+        row = 0
         
         # Título
-        ws['A1'] = "REPORTE DE ANÁLISIS FINANCIERO"
-        ws['A1'].font = Font(size=16, bold=True, color="FFFFFF")
-        ws['A1'].fill = PatternFill(start_color="2563EB", end_color="2563EB", fill_type="solid")
-        ws['A1'].alignment = Alignment(horizontal="center", vertical="center")
-        ws.merge_cells('A1:F1')
-        ws.row_dimensions[1].height = 30
-        
-        years = data.get('available_years', [])
-        indicators = data.get('indicators', {})
-        
-        row = 3
-        ws[f'A{row}'] = "Período de Análisis"
-        ws[f'A{row}'].font = Font(bold=True)
-        ws[f'B{row}'] = f"{min(years)} - {max(years)}" if years else "N/A"
-        
+        worksheet.merge_range(row, 0, row, len(data['available_years']), 
+                            'ANÁLISIS COMPARATIVO MULTIANUAL', styles['title'])
         row += 2
-        ws[f'A{row}'] = "INDICADORES PRINCIPALES"
-        ws[f'A{row}'].font = Font(size=14, bold=True, color="FFFFFF")
-        ws[f'A{row}'].fill = PatternFill(start_color="4B5563", end_color="4B5563", fill_type="solid")
-        ws.merge_cells(f'A{row}:F{row}')
         
-        # Indicadores clave del último año
-        if years:
-            last_year = str(max(years))
-            row += 2
-            
-            # Liquidez
-            self._add_indicator_row(ws, row, "Razón Corriente", 
-                                   indicators.get('liquidez', {}).get('razon_corriente', {}).get(last_year, 0),
-                                   "ratio")
+        # Encabezados
+        worksheet.write(row, 0, 'Indicador', styles['header'])
+        for col, year in enumerate(data['available_years'], 1):
+            worksheet.write(row, col, str(year), styles['header'])
+        row += 1
+        
+        # Indicadores por categoría
+        categories = {
+            'Liquidez': data['indicators'].get('liquidez', {}),
+            'Rentabilidad': data['indicators'].get('rentabilidad', {}),
+            'Endeudamiento': data['indicators'].get('endeudamiento', {}),
+            'Rotación': data['indicators'].get('rotacion', {}),
+            'Quiebra': data['indicators'].get('quiebra', {})
+        }
+        
+        for category_name, indicators in categories.items():
+            worksheet.write(row, 0, category_name, styles['category'])
             row += 1
             
-            # Rentabilidad
-            self._add_indicator_row(ws, row, "ROE", 
-                                   indicators.get('rentabilidad', {}).get('roe', {}).get(last_year, 0),
-                                   "percentage")
-            row += 1
-            self._add_indicator_row(ws, row, "ROA", 
-                                   indicators.get('rentabilidad', {}).get('roa', {}).get(last_year, 0),
-                                   "percentage")
-            row += 1
-            
-            # Endeudamiento
-            self._add_indicator_row(ws, row, "Endeudamiento Total", 
-                                   indicators.get('endeudamiento', {}).get('endeudamiento_total', {}).get(last_year, 0),
-                                   "percentage")
-            row += 1
-            
-            # Z-Score
-            z_score_data = indicators.get('quiebra', {}).get('z_score', {}).get(last_year, 0)
-            z_score = z_score_data if isinstance(z_score_data, (int, float)) else 0
-            self._add_indicator_row(ws, row, "Z-Score (Altman)", z_score, "number")
-            
-            clasificacion = indicators.get('quiebra', {}).get('clasificacion_z', {}).get(last_year, "N/A")
-            row += 1
-            ws[f'A{row}'] = "Estado Financiero"
-            ws[f'A{row}'].font = Font(bold=True)
-            ws[f'B{row}'] = clasificacion
-            
-            # Color según clasificación
-            if clasificacion == "Zona Segura":
-                ws[f'B{row}'].fill = PatternFill(start_color="D1FAE5", end_color="D1FAE5", fill_type="solid")
-            elif clasificacion == "Zona Gris":
-                ws[f'B{row}'].fill = PatternFill(start_color="FEF3C7", end_color="FEF3C7", fill_type="solid")
-            else:
-                ws[f'B{row}'].fill = PatternFill(start_color="FEE2E2", end_color="FEE2E2", fill_type="solid")
-        
-        # Ajustar anchos
-        ws.column_dimensions['A'].width = 25
-        ws.column_dimensions['B'].width = 20
-    
-    def _create_liquidity_sheet(self, data: Dict):
-        """Hoja de indicadores de liquidez"""
-        ws = self.wb.create_sheet("Liquidez")
-        self._create_indicator_sheet(ws, data, 'liquidez', 'INDICADORES DE LIQUIDEZ')
-    
-    def _create_profitability_sheet(self, data: Dict):
-        """Hoja de indicadores de rentabilidad"""
-        ws = self.wb.create_sheet("Rentabilidad")
-        self._create_indicator_sheet(ws, data, 'rentabilidad', 'INDICADORES DE RENTABILIDAD')
-    
-    def _create_debt_sheet(self, data: Dict):
-        """Hoja de indicadores de endeudamiento"""
-        ws = self.wb.create_sheet("Endeudamiento")
-        self._create_indicator_sheet(ws, data, 'endeudamiento', 'INDICADORES DE ENDEUDAMIENTO')
-    
-    def _create_rotation_sheet(self, data: Dict):
-        """Hoja de indicadores de rotación"""
-        ws = self.wb.create_sheet("Rotación")
-        self._create_indicator_sheet(ws, data, 'rotacion', 'INDICADORES DE ROTACIÓN')
-    
-    def _create_bankruptcy_sheet(self, data: Dict):
-        """Hoja de análisis de quiebra"""
-        ws = self.wb.create_sheet("Análisis de Quiebra")
-        self._create_indicator_sheet(ws, data, 'quiebra', 'INDICADORES DE QUIEBRA (Z-SCORE)')
-    
-    def _create_indicator_sheet(self, ws, data: Dict, indicator_type: str, title: str):
-        """Plantilla genérica para hojas de indicadores"""
-        # Título
-        ws['A1'] = title
-        ws['A1'].font = Font(size=14, bold=True, color="FFFFFF")
-        ws['A1'].fill = PatternFill(start_color="2563EB", end_color="2563EB", fill_type="solid")
-        ws['A1'].alignment = Alignment(horizontal="center", vertical="center")
-        ws.row_dimensions[1].height = 25
-        
-        years = data.get('available_years', [])
-        indicators = data.get('indicators', {}).get(indicator_type, {})
-        
-        # Headers
-        ws['A3'] = "Indicador"
-        ws['A3'].font = Font(bold=True)
-        ws['A3'].fill = PatternFill(start_color="E5E7EB", end_color="E5E7EB", fill_type="solid")
-        
-        for idx, year in enumerate(years):
-            col = chr(66 + idx)  # B, C, D...
-            ws[f'{col}3'] = str(year)
-            ws[f'{col}3'].font = Font(bold=True)
-            ws[f'{col}3'].fill = PatternFill(start_color="E5E7EB", end_color="E5E7EB", fill_type="solid")
-            ws[f'{col}3'].alignment = Alignment(horizontal="center")
-        
-        # Datos
-        row = 4
-        for indicator_name, values in indicators.items():
-            if isinstance(values, dict) and not indicator_name.startswith('clasificacion'):
-                ws[f'A{row}'] = indicator_name.replace('_', ' ').title()
-                
-                for idx, year in enumerate(years):
-                    col = chr(66 + idx)
-                    value = values.get(str(year), 0)
+            for indicator_name, values in indicators.items():
+                if isinstance(values, dict):
+                    label = self._get_indicator_label(indicator_name)
+                    worksheet.write(row, 0, label, styles['label'])
                     
-                    if isinstance(value, dict):
-                        ws[f'{col}{row}'] = str(value)
-                    else:
-                        ws[f'{col}{row}'] = round(float(value), 2)
-                        ws[f'{col}{row}'].number_format = '#,##0.00'
-                
-                row += 1
-        
-        # Ajustar anchos
-        ws.column_dimensions['A'].width = 30
-        for idx in range(len(years)):
-            col = chr(66 + idx)
-            ws.column_dimensions[col].width = 15
-        
-        # Merge título
-        ws.merge_cells(f'A1:{chr(65 + len(years))}1')
+                    for col, year in enumerate(data['available_years'], 1):
+                        value = values.get(str(year))
+                        if value is not None:
+                            format_style = self._get_value_format(indicator_name, value, styles)
+                            worksheet.write(row, col, value, format_style)
+                    row += 1
+            row += 1
     
-    def _create_horizontal_analysis_sheet(self, data: Dict):
-        """Análisis horizontal (comparación entre períodos)"""
-        ws = self.wb.create_sheet("Análisis Horizontal")
+    def _add_cover_page(self, workbook, data: Dict, styles: Dict):
+        """Agrega página de portada"""
+        worksheet = workbook.add_worksheet('Portada')
+        worksheet.set_column('A:A', 40)
         
-        ws['A1'] = "ANÁLISIS HORIZONTAL"
-        ws['A1'].font = Font(size=14, bold=True, color="FFFFFF")
-        ws['A1'].fill = PatternFill(start_color="2563EB", end_color="2563EB", fill_type="solid")
-        ws.merge_cells('A1:E1')
+        row = 5
+        worksheet.merge_range(row, 0, row, 2, 'REPORTE DE ANÁLISIS FINANCIERO', styles['title'])
         
+        row += 3
+        info_style = workbook.add_format({'font_size': 11, 'align': 'left'})
+        
+        worksheet.write(row, 0, 'Empresa:', workbook.add_format({'bold': True}))
+        worksheet.write(row, 1, self.company_name, info_style)
+        row += 1
+        
+        worksheet.write(row, 0, 'Fecha de Generación:', workbook.add_format({'bold': True}))
+        worksheet.write(row, 1, self.export_date.strftime('%d/%m/%Y %H:%M'), info_style)
+        row += 1
+        
+        worksheet.write(row, 0, 'Períodos Analizados:', workbook.add_format({'bold': True}))
+        worksheet.write(row, 1, ', '.join(map(str, data.get('available_years', []))), info_style)
+        row += 1
+        
+        worksheet.write(row, 0, 'Archivo Fuente:', workbook.add_format({'bold': True}))
+        worksheet.write(row, 1, data.get('filename', 'N/A'), info_style)
+    
+    def _add_executive_summary(self, workbook, data: Dict, styles: Dict):
+        """Agrega resumen ejecutivo"""
+        worksheet = workbook.add_worksheet('Resumen Ejecutivo')
+        worksheet.set_column('A:A', 30)
+        worksheet.set_column('B:B', 20)
+        worksheet.set_column('C:C', 40)
+        
+        row = 0
+        worksheet.merge_range(row, 0, row, 2, 'RESUMEN EJECUTIVO', styles['title'])
+        row += 2
+        
+        # Obtener último año
         years = data.get('available_years', [])
-        raw_data = data.get('raw_data', {})
-        
-        if len(years) < 2:
-            ws['A3'] = "Se requieren al menos 2 períodos para análisis horizontal"
+        if not years:
             return
         
-        # Headers
-        row = 3
-        ws[f'A{row}'] = "Cuenta"
-        ws[f'B{row}'] = f"Año {years[-2]}"
-        ws[f'C{row}'] = f"Año {years[-1]}"
-        ws[f'D{row}'] = "Variación Absoluta"
-        ws[f'E{row}'] = "Variación %"
+        latest_year = str(max(years))
+        indicators = data.get('indicators', {})
         
-        for col in ['A', 'B', 'C', 'D', 'E']:
-            ws[f'{col}{row}'].font = Font(bold=True)
-            ws[f'{col}{row}'].fill = PatternFill(start_color="E5E7EB", end_color="E5E7EB", fill_type="solid")
+        # Sección Liquidez
+        worksheet.write(row, 0, '💧 LIQUIDEZ', styles['category'])
+        row += 1
+        
+        liquidez = indicators.get('liquidez', {})
+        razon_corriente = liquidez.get('razon_corriente', {}).get(latest_year, 0)
+        clasificacion = liquidez.get('clasificacion_liquidez', {}).get(latest_year, 'N/A')
+        
+        worksheet.write(row, 0, 'Razón Corriente', styles['label'])
+        worksheet.write(row, 1, razon_corriente, styles['number'])
+        worksheet.write(row, 2, self._get_liquidity_interpretation(razon_corriente), styles['info'])
+        row += 1
+        
+        worksheet.write(row, 0, 'Clasificación', styles['label'])
+        worksheet.write(row, 1, clasificacion, styles['label'])
+        row += 2
+        
+        # Sección Rentabilidad
+        worksheet.write(row, 0, '💰 RENTABILIDAD', styles['category'])
+        row += 1
+        
+        rentabilidad = indicators.get('rentabilidad', {})
+        roe = rentabilidad.get('roe', {}).get(latest_year, 0)
+        roa = rentabilidad.get('roa', {}).get(latest_year, 0)
+        
+        worksheet.write(row, 0, 'ROE', styles['label'])
+        worksheet.write(row, 1, roe, styles['percentage'])
+        worksheet.write(row, 2, self._get_roe_interpretation(roe), styles['info'])
+        row += 1
+        
+        worksheet.write(row, 0, 'ROA', styles['label'])
+        worksheet.write(row, 1, roa, styles['percentage'])
+        row += 2
+        
+        # Sección Endeudamiento
+        worksheet.write(row, 0, '📊 ENDEUDAMIENTO', styles['category'])
+        row += 1
+        
+        endeudamiento = indicators.get('endeudamiento', {})
+        endeudamiento_total = endeudamiento.get('endeudamiento_total', {}).get(latest_year, 0)
+        clasificacion_riesgo = endeudamiento.get('clasificacion_riesgo', {}).get(latest_year, 'N/A')
+        
+        worksheet.write(row, 0, 'Endeudamiento Total', styles['label'])
+        worksheet.write(row, 1, endeudamiento_total, styles['percentage'])
+        worksheet.write(row, 2, self._get_debt_interpretation(endeudamiento_total), styles['info'])
+        row += 1
+        
+        worksheet.write(row, 0, 'Clasificación de Riesgo', styles['label'])
+        worksheet.write(row, 1, clasificacion_riesgo, styles['label'])
+        row += 2
+        
+        # Sección Quiebra
+        worksheet.write(row, 0, '⚠️ RIESGO DE QUIEBRA', styles['category'])
+        row += 1
+        
+        quiebra = indicators.get('quiebra', {})
+        z_score = quiebra.get('z_score', {}).get(latest_year, 0)
+        clasificacion_z = quiebra.get('clasificacion_z', {}).get(latest_year, 'N/A')
+        
+        worksheet.write(row, 0, 'Z-Score Altman', styles['label'])
+        worksheet.write(row, 1, z_score, styles['number'])
+        worksheet.write(row, 2, self._get_zscore_interpretation(z_score), styles['info'])
+        row += 1
+        
+        worksheet.write(row, 0, 'Clasificación', styles['label'])
+        worksheet.write(row, 1, clasificacion_z, styles['label'])
+    
+    def _add_liquidity_sheet(self, workbook, data: Dict, styles: Dict):
+        """Agrega hoja de indicadores de liquidez"""
+        self._add_indicator_sheet(workbook, data, 'liquidez', '💧 Indicadores de Liquidez', styles)
+    
+    def _add_profitability_sheet(self, workbook, data: Dict, styles: Dict):
+        """Agrega hoja de indicadores de rentabilidad"""
+        self._add_indicator_sheet(workbook, data, 'rentabilidad', '💰 Indicadores de Rentabilidad', styles)
+    
+    def _add_debt_sheet(self, workbook, data: Dict, styles: Dict):
+        """Agrega hoja de indicadores de endeudamiento"""
+        self._add_indicator_sheet(workbook, data, 'endeudamiento', '📊 Indicadores de Endeudamiento', styles)
+    
+    def _add_rotation_sheet(self, workbook, data: Dict, styles: Dict):
+        """Agrega hoja de indicadores de rotación"""
+        self._add_indicator_sheet(workbook, data, 'rotacion', '🔄 Indicadores de Rotación', styles)
+    
+    def _add_bankruptcy_sheet(self, workbook, data: Dict, styles: Dict):
+        """Agrega hoja de análisis de quiebra"""
+        self._add_indicator_sheet(workbook, data, 'quiebra', '⚠️ Análisis de Quiebra', styles)
+    
+    def _add_indicator_sheet(self, workbook, data: Dict, category: str, title: str, styles: Dict):
+        """Agrega una hoja de indicadores genérica"""
+        worksheet = workbook.add_worksheet(title.split(' ')[-1])
+        worksheet.set_column('A:A', 30)
+        worksheet.set_column('B:Z', 15)
+        
+        row = 0
+        worksheet.merge_range(row, 0, row, len(data['available_years']), title, styles['title'])
+        row += 2
+        
+        # Encabezados
+        worksheet.write(row, 0, 'Indicador', styles['header'])
+        for col, year in enumerate(data['available_years'], 1):
+            worksheet.write(row, col, str(year), styles['header'])
+        row += 1
+        
+        # Indicadores
+        indicators = data['indicators'].get(category, {})
+        for indicator_name, values in indicators.items():
+            if isinstance(values, dict):
+                label = self._get_indicator_label(indicator_name)
+                worksheet.write(row, 0, label, styles['label'])
+                
+                for col, year in enumerate(data['available_years'], 1):
+                    value = values.get(str(year))
+                    if value is not None:
+                        format_style = self._get_value_format(indicator_name, value, styles)
+                        worksheet.write(row, col, value, format_style)
+                row += 1
+        
+        # Agregar interpretaciones
+        row += 1
+        worksheet.write(row, 0, 'Interpretación:', styles['subheader'])
+        row += 1
+        worksheet.merge_range(row, 0, row + 2, len(data['available_years']), 
+                            self._get_category_interpretation(category), 
+                            styles['info'])
+    
+    def _add_horizontal_analysis(self, workbook, data: Dict, styles: Dict):
+        """Agrega análisis horizontal"""
+        worksheet = workbook.add_worksheet('Análisis Horizontal')
+        worksheet.set_column('A:A', 30)
+        worksheet.set_column('B:Z', 15)
+        
+        row = 0
+        worksheet.merge_range(row, 0, row, 6, 'ANÁLISIS HORIZONTAL', styles['title'])
+        row += 2
+        
+        horizontal = data.get('horizontal_analysis', {})
+        years = data.get('available_years', [])
+        
+        for account_name, account_data in horizontal.items():
+            worksheet.write(row, 0, self._format_account_name(account_name), styles['category'])
+            row += 1
+            
+            # Encabezados
+            worksheet.write(row, 0, 'Año', styles['header'])
+            worksheet.write(row, 1, 'Valor', styles['header'])
+            worksheet.write(row, 2, 'Variación Absoluta', styles['header'])
+            worksheet.write(row, 3, 'Variación %', styles['header'])
+            row += 1
+            
+            # Datos
+            values = account_data.get('values', {})
+            absolute_var = account_data.get('absolute_variation', {})
+            percentage_var = account_data.get('percentage_variation', {})
+            
+            for year in years:
+                year_str = str(year)
+                worksheet.write(row, 0, year_str, styles['label'])
+                worksheet.write(row, 1, values.get(year_str, 0), styles['currency'])
+                
+                if year_str in absolute_var:
+                    worksheet.write(row, 2, absolute_var[year_str], styles['currency'])
+                    worksheet.write(row, 3, percentage_var[year_str] / 100, styles['percentage'])
+                row += 1
+            
+            row += 1
+    
+    def _add_vertical_analysis(self, workbook, data: Dict, styles: Dict):
+        """Agrega análisis vertical"""
+        worksheet = workbook.add_worksheet('Análisis Vertical')
+        worksheet.set_column('A:A', 30)
+        worksheet.set_column('B:Z', 15)
+        
+        row = 0
+        worksheet.merge_range(row, 0, row, len(data['available_years']), 
+                            'ANÁLISIS VERTICAL', styles['title'])
+        row += 2
+        
+        # Encabezados
+        worksheet.write(row, 0, 'Cuenta', styles['header'])
+        for col, year in enumerate(data['available_years'], 1):
+            worksheet.write(row, col, f'{year} (%)', styles['header'])
+        row += 1
         
         # Datos
-        row += 1
-        for account, values in raw_data.items():
-            year1 = values.get(str(years[-2]), 0)
-            year2 = values.get(str(years[-1]), 0)
+        vertical = data.get('vertical_analysis', {})
+        for account_name, percentages in vertical.items():
+            worksheet.write(row, 0, self._format_account_name(account_name), styles['label'])
             
-            if year1 != 0 or year2 != 0:
-                ws[f'A{row}'] = account.replace('_', ' ').title()
-                ws[f'B{row}'] = round(float(year1), 2)
-                ws[f'C{row}'] = round(float(year2), 2)
-                ws[f'D{row}'] = round(float(year2) - float(year1), 2)
-                
-                if year1 != 0:
-                    var_percent = ((float(year2) / float(year1)) - 1) * 100
-                    ws[f'E{row}'] = round(var_percent, 2)
-                    ws[f'E{row}'].number_format = '0.00"%"'
-                    
-                    # Color según variación
-                    if var_percent > 10:
-                        ws[f'E{row}'].fill = PatternFill(start_color="D1FAE5", end_color="D1FAE5", fill_type="solid")
-                    elif var_percent < -10:
-                        ws[f'E{row}'].fill = PatternFill(start_color="FEE2E2", end_color="FEE2E2", fill_type="solid")
-                
-                row += 1
-        
-        # Ajustar anchos
-        for col, width in [('A', 30), ('B', 15), ('C', 15), ('D', 18), ('E', 15)]:
-            ws.column_dimensions[col].width = width
+            for col, year in enumerate(data['available_years'], 1):
+                value = percentages.get(str(year), 0)
+                worksheet.write(row, col, value / 100, styles['percentage'])
+            row += 1
     
-    def _create_vertical_analysis_sheet(self, data: Dict):
-        """Análisis vertical (estructura porcentual)"""
-        ws = self.wb.create_sheet("Análisis Vertical")
+    def _add_raw_data(self, workbook, data: Dict, styles: Dict):
+        """Agrega datos crudos"""
+        worksheet = workbook.add_worksheet('Datos Crudos')
+        worksheet.set_column('A:A', 30)
+        worksheet.set_column('B:Z', 15)
         
-        ws['A1'] = "ANÁLISIS VERTICAL"
-        ws['A1'].font = Font(size=14, bold=True, color="FFFFFF")
-        ws['A1'].fill = PatternFill(start_color="2563EB", end_color="2563EB", fill_type="solid")
+        row = 0
+        worksheet.merge_range(row, 0, row, len(data['available_years']), 
+                            'DATOS FINANCIEROS CRUDOS', styles['title'])
+        row += 2
         
-        years = data.get('available_years', [])
+        # Encabezados
+        worksheet.write(row, 0, 'Cuenta', styles['header'])
+        for col, year in enumerate(data['available_years'], 1):
+            worksheet.write(row, col, str(year), styles['header'])
+        row += 1
+        
+        # Datos
         raw_data = data.get('raw_data', {})
-        
-        # Headers
-        ws['A3'] = "Cuenta"
-        for idx, year in enumerate(years):
-            col = chr(66 + idx)
-            ws[f'{col}3'] = f"% {year}"
-            ws[f'{col}3'].font = Font(bold=True)
-            ws[f'{col}3'].fill = PatternFill(start_color="E5E7EB", end_color="E5E7EB", fill_type="solid")
-        
-        ws['A3'].font = Font(bold=True)
-        ws['A3'].fill = PatternFill(start_color="E5E7EB", end_color="E5E7EB", fill_type="solid")
-        
-        # Calcular porcentajes sobre activo total
-        activo_total = raw_data.get('activo_total', {})
-        
-        row = 4
-        for account, values in raw_data.items():
-            if account != 'activo_total':
-                ws[f'A{row}'] = account.replace('_', ' ').title()
-                
-                for idx, year in enumerate(years):
-                    col = chr(66 + idx)
-                    value = values.get(str(year), 0)
-                    total = activo_total.get(str(year), 1)
-                    
-                    if total != 0:
-                        percentage = (float(value) / float(total)) * 100
-                        ws[f'{col}{row}'] = round(percentage, 2)
-                        ws[f'{col}{row}'].number_format = '0.00"%"'
-                
-                row += 1
-        
-        # Ajustar anchos
-        ws.column_dimensions['A'].width = 30
-        for idx in range(len(years)):
-            col = chr(66 + idx)
-            ws.column_dimensions[col].width = 15
-        
-        # Merge título
-        ws.merge_cells(f'A1:{chr(65 + len(years))}1')
+        for account_name, values in raw_data.items():
+            worksheet.write(row, 0, self._format_account_name(account_name), styles['label'])
+            
+            for col, year in enumerate(data['available_years'], 1):
+                value = values.get(str(year), 0)
+                worksheet.write(row, col, value, styles['currency'])
+            row += 1
     
-    def _add_indicator_row(self, ws, row, label, value, format_type="number"):
-        """Agregar fila de indicador con formato"""
-        ws[f'A{row}'] = label
-        ws[f'A{row}'].font = Font(bold=True)
+    # Métodos auxiliares
+    
+    def _get_indicator_label(self, key: str) -> str:
+        """Obtiene la etiqueta legible del indicador"""
+        labels = {
+            'razon_corriente': 'Razón Corriente',
+            'prueba_acida': 'Prueba Ácida',
+            'capital_trabajo': 'Capital de Trabajo',
+            'clasificacion_liquidez': 'Clasificación',
+            'roe': 'Return on Equity (ROE)',
+            'roa': 'Return on Assets (ROA)',
+            'margen_bruto': 'Margen Bruto',
+            'margen_neto': 'Margen Neto',
+            'endeudamiento_total': 'Endeudamiento Total',
+            'deuda_patrimonio': 'Deuda/Patrimonio',
+            'cobertura_intereses': 'Cobertura de Intereses',
+            'clasificacion_riesgo': 'Clasificación de Riesgo',
+            'rotacion_inventarios': 'Rotación de Inventarios',
+            'rotacion_cartera': 'Rotación de Cartera',
+            'rotacion_activos': 'Rotación de Activos',
+            'dias_inventario': 'Días de Inventario',
+            'dias_cartera': 'Días de Cartera',
+            'z_score': 'Z-Score Altman',
+            'clasificacion_z': 'Clasificación Z-Score',
+            'probabilidad_quiebra': 'Probabilidad de Quiebra'
+        }
+        return labels.get(key, key.replace('_', ' ').title())
+    
+    def _get_value_format(self, indicator_name: str, value, styles: Dict):
+        """Obtiene el formato apropiado para un valor"""
+        if isinstance(value, str):
+            return styles['label']
         
-        if format_type == "percentage":
-            ws[f'B{row}'] = f"{round(float(value) * 100, 2)}%"
-        elif format_type == "ratio":
-            ws[f'B{row}'] = round(float(value), 2)
+        # Formatos por tipo de indicador
+        currency_indicators = ['capital_trabajo']
+        percentage_indicators = ['roe', 'roa', 'margen_bruto', 'margen_neto', 
+                                'endeudamiento_total']
+        
+        if indicator_name in currency_indicators:
+            return styles['currency']
+        elif indicator_name in percentage_indicators:
+            return styles['percentage']
         else:
-            ws[f'B{row}'] = round(float(value), 2)
+            # Aplicar colores según rangos
+            if indicator_name == 'razon_corriente':
+                if value >= 1.5:
+                    return styles['good']
+                elif value >= 1.0:
+                    return styles['warning']
+                else:
+                    return styles['bad']
+            elif indicator_name == 'z_score':
+                if value > 2.99:
+                    return styles['good']
+                elif value >= 1.81:
+                    return styles['warning']
+                else:
+                    return styles['bad']
+            
+            return styles['number']
+    
+    def _format_account_name(self, name: str) -> str:
+        """Formatea nombres de cuentas"""
+        return name.replace('_', ' ').title()
+    
+    def _get_liquidity_interpretation(self, razon: float) -> str:
+        """Interpreta la razón corriente"""
+        if razon >= 2.0:
+            return "Excelente: Alta capacidad de pago"
+        elif razon >= 1.5:
+            return "Bueno: Capacidad de pago adecuada"
+        elif razon >= 1.0:
+            return "Aceptable: Capacidad de pago limitada"
+        else:
+            return "Crítico: Riesgo de liquidez"
+    
+    def _get_roe_interpretation(self, roe: float) -> str:
+        """Interpreta el ROE"""
+        if roe >= 0.15:
+            return "Excelente: Alta rentabilidad sobre capital"
+        elif roe >= 0.10:
+            return "Bueno: Rentabilidad aceptable"
+        elif roe >= 0.05:
+            return "Regular: Rentabilidad baja"
+        else:
+            return "Crítico: Rentabilidad insuficiente"
+    
+    def _get_debt_interpretation(self, debt: float) -> str:
+        """Interpreta el endeudamiento"""
+        if debt <= 0.40:
+            return "Bajo: Estructura financiera saludable"
+        elif debt <= 0.60:
+            return "Medio: Endeudamiento moderado"
+        else:
+            return "Alto: Alto riesgo financiero"
+    
+    def _get_zscore_interpretation(self, z_score: float) -> str:
+        """Interpreta el Z-Score"""
+        if z_score > 2.99:
+            return "Zona Segura: Bajo riesgo de quiebra"
+        elif z_score >= 1.81:
+            return "Zona Gris: Riesgo moderado"
+        else:
+            return "Zona de Peligro: Alto riesgo de quiebra"
+    
+    def _get_category_interpretation(self, category: str) -> str:
+        """Obtiene interpretación de la categoría"""
+        interpretations = {
+            'liquidez': 'Los indicadores de liquidez miden la capacidad de la empresa para cumplir con sus obligaciones a corto plazo. Una razón corriente mayor a 1.5 es considerada saludable.',
+            'rentabilidad': 'Los indicadores de rentabilidad evalúan la capacidad de generar utilidades. Un ROE superior al 15% indica una excelente gestión del capital.',
+            'endeudamiento': 'Los indicadores de endeudamiento miden el nivel de deuda y la capacidad de cubrirla. Un endeudamiento total inferior al 60% es recomendable.',
+            'rotacion': 'Los indicadores de rotación evalúan la eficiencia operativa. Mayor rotación indica mejor gestión de recursos.',
+            'quiebra': 'El Z-Score de Altman predice el riesgo de quiebra. Un valor superior a 2.99 indica zona segura.'
+        }
+        return interpretations.get(category, '')
+    
+    def export_to_csv(self, analysis_data: Dict, category: Optional[str] = None) -> io.StringIO:
+        """
+        Exporta datos a formato CSV
+        
+        Args:
+            analysis_data: Datos del análisis
+            category: Categoría específica a exportar (opcional)
+        """
+        output = io.StringIO()
+        
+        if category and category in analysis_data['indicators']:
+            # Exportar categoría específica
+            df = pd.DataFrame(analysis_data['indicators'][category])
+            df = df.T  # Transponer para tener años como columnas
+            df.to_csv(output)
+        else:
+            # Exportar todos los indicadores
+            all_data = {}
+            for cat_name, indicators in analysis_data['indicators'].items():
+                for ind_name, values in indicators.items():
+                    if isinstance(values, dict):
+                        all_data[f"{cat_name}_{ind_name}"] = values
+            
+            df = pd.DataFrame(all_data)
+            df = df.T
+            df.to_csv(output)
+        
+        output.seek(0)
+        return output
+    
+    def export_to_json(self, analysis_data: Dict) -> str:
+        """Exporta datos a formato JSON"""
+        return json.dumps(analysis_data, indent=2, ensure_ascii=False)

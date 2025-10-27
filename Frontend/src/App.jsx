@@ -10,6 +10,7 @@ import AnalysisView from './components/AnalysisView';
 import Requirements from './components/Requirements';
 import ChatWindow from './components/ChatWindow';
 import './App.css';
+import ExportModal from './components/ExportModal';
 
 const API_BASE = 'https://financial-analysis-system-qhnz.onrender.com';
 
@@ -115,6 +116,7 @@ const Icons = {
 function MainApp() {
   const { user, isAuthenticated, logout, api } = useAuth();
   
+  const [showExportModal, setShowExportModal] = useState(false);
   const [financialData, setFinancialData] = useState(null);
   const [selectedYear, setSelectedYear] = useState('');
   const [loading, setLoading] = useState(false);
@@ -501,12 +503,7 @@ function MainApp() {
                   <span>Cargar Excel</span>
                 </label>
 
-                <button 
-                  onClick={handleExport} 
-                  className="upload-btn" 
-                  title="Exportar a Excel"
-                  disabled={!financialData}
-                >
+                <button onClick={() => setShowExportModal(true)}>
                   <Icons.File />
                   <span>Exportar</span>
                 </button>
@@ -988,6 +985,11 @@ function MainApp() {
           </div>
         )}
       </div>
+      <ExportModal 
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        financialData={financialData}
+      />
     </div>
   );
 }

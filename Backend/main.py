@@ -1,4 +1,4 @@
-
+from app.export_routes import router as export_router
 from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -24,7 +24,7 @@ from app.dependencies import get_current_active_user
 from app.model import User
 
 app = FastAPI(title="Financial Analysis API")
-
+app.include_router(export_router)
 # CORS actualizado para incluir tu dominio de Vercel
 app.add_middleware(
     CORSMiddleware,
