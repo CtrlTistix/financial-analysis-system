@@ -12,6 +12,7 @@ import ChatWindow from './components/ChatWindow';
 import './App.css';
 import ExportModal from './components/ExportModal';
 import ReportsModal from './components/ReportsModal';
+import ReportsView from './components/ReportsView';
 
 const API_BASE = 'https://financial-analysis-system-qhnz.onrender.com';
 
@@ -584,12 +585,12 @@ function MainApp() {
               <ul>
                 <li>
                   <div
-                    className="nav-item"
-                    onClick={() => setShowReportsModal(true)}
-                    data-tooltip="Reportes Especializados"
+                    className={`nav-item ${currentView === 'reports' ? 'active' : ''}`}
+                    onClick={() => handleNavClick('reports')}
+                    data-tooltip="Centro de Reportes"
                   >
                     <span className="nav-icon"><Icons.Report /></span>
-                    <span className="nav-text">Ver Todos los Reportes</span>
+                    <span className="nav-text">Centro de Reportes</span>
                   </div>
                 </li>
               </ul>
@@ -649,7 +650,9 @@ function MainApp() {
         {/* Main Content */}
         <main className={`main-content ${chatOpen && chatMode === 'fixed' ? 'with-chat' : ''}`}>
           {/* Mostrar AdminPanel si es admin y está en esa vista */}
-          {currentView === 'admin' ? (
+          {currentView === 'reports' ? (
+            <ReportsView  financialData={financialData} />
+          ) : currentView === 'admin' ? (
             <AdminPanel />
           ) : currentView === 'requirements' ? (
             <Requirements />
