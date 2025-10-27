@@ -204,6 +204,7 @@ async def upload_file(
         analysis_result["message"] = "Análisis financiero completado exitosamente"
         
         last_analysis = analysis_result
+        set_last_analysis(analysis_result)
         
         return analysis_result
         set_last_analysis(analysis_result)
