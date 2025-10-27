@@ -10,15 +10,17 @@ from app.services.export_service import ExportService
 router = APIRouter(prefix="/export", tags=["export"])
 export_service = ExportService()
 
-# Variable global para almacenar el último análisis (misma que en main.py)
-# En producción, esto debería venir de una base de datos
-last_analysis = None
+# Variable global para almacenar el último análisis
+_last_analysis = None
 
+def set_last_analysis(data):
+    """Actualiza el último análisis desde main.py"""
+    global _last_analysis
+    _last_analysis = data
 
 def get_last_analysis():
     """Obtiene el último análisis disponible"""
-    from main import last_analysis as analysis
-    return analysis
+    return _last_analysis
 
 
 @router.get("/excel/complete")
@@ -52,6 +54,9 @@ async def export_complete_excel(
         )
         
     except Exception as e:
+        print(f"❌ Error en export_complete_excel: {str(e)}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(
             status_code=500, 
             detail=f"Error generando reporte completo: {str(e)}"
@@ -89,6 +94,7 @@ async def export_summary_excel(
         )
         
     except Exception as e:
+        print(f"❌ Error en export_summary_excel: {str(e)}")
         raise HTTPException(
             status_code=500, 
             detail=f"Error generando resumen: {str(e)}"
@@ -126,6 +132,7 @@ async def export_indicators_excel(
         )
         
     except Exception as e:
+        print(f"❌ Error en export_indicators_excel: {str(e)}")
         raise HTTPException(
             status_code=500, 
             detail=f"Error generando indicadores: {str(e)}"
@@ -168,6 +175,7 @@ async def export_analysis_excel(
         )
         
     except Exception as e:
+        print(f"❌ Error en export_analysis_excel: {str(e)}")
         raise HTTPException(
             status_code=500, 
             detail=f"Error generando análisis: {str(e)}"
@@ -204,6 +212,7 @@ async def export_comparative_excel(
         )
         
     except Exception as e:
+        print(f"❌ Error en export_comparative_excel: {str(e)}")
         raise HTTPException(
             status_code=500, 
             detail=f"Error generando comparativo: {str(e)}"
@@ -242,6 +251,7 @@ async def export_to_csv(
         )
         
     except Exception as e:
+        print(f"❌ Error en export_to_csv: {str(e)}")
         raise HTTPException(
             status_code=500, 
             detail=f"Error generando CSV: {str(e)}"
@@ -275,6 +285,7 @@ async def export_to_json(
         )
         
     except Exception as e:
+        print(f"❌ Error en export_to_json: {str(e)}")
         raise HTTPException(
             status_code=500, 
             detail=f"Error generando JSON: {str(e)}"

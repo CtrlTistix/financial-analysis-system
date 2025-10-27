@@ -22,6 +22,7 @@ from app.auth_routes import router as auth_router
 from app.user_routes import router as user_router
 from app.dependencies import get_current_active_user
 from app.model import User
+from app.export_routes import router as export_router, set_last_analysis
 
 app = FastAPI(title="Financial Analysis API")
 app.include_router(export_router)
@@ -77,7 +78,7 @@ last_analysis = None
 # ============ INCLUIR ROUTERS DE AUTENTICACIÓN ============
 app.include_router(auth_router)
 app.include_router(user_router)
-
+app.include_router(export_router)
 # ============ ENDPOINTS PÚBLICOS ============
 
 @app.get("/")
@@ -205,6 +206,7 @@ async def upload_file(
         last_analysis = analysis_result
         
         return analysis_result
+        set_last_analysis(analysis_result)
         
     except HTTPException:
         raise
