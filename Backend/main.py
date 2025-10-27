@@ -23,9 +23,11 @@ from app.user_routes import router as user_router
 from app.dependencies import get_current_active_user
 from app.model import User
 from app.export_routes import router as export_router, set_last_analysis
+from app.reports_routes import router as reports_router, set_last_analysis as set_reports_analysis
 
 app = FastAPI(title="Financial Analysis API")
 app.include_router(export_router)
+app.include_router(reports_router)
 # CORS actualizado para incluir tu dominio de Vercel
 app.add_middleware(
     CORSMiddleware,
@@ -205,9 +207,9 @@ async def upload_file(
         
         last_analysis = analysis_result
         set_last_analysis(analysis_result)
-        
+        set_reports_analysis(analysis_result)
+
         return analysis_result
-        set_last_analysis(analysis_result)
         
     except HTTPException:
         raise
