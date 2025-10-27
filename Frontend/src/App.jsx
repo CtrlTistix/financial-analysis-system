@@ -11,6 +11,7 @@ import Requirements from './components/Requirements';
 import ChatWindow from './components/ChatWindow';
 import './App.css';
 import ExportModal from './components/ExportModal';
+import ReportsModal from './components/ReportsModal';
 
 const API_BASE = 'https://financial-analysis-system-qhnz.onrender.com';
 
@@ -116,6 +117,7 @@ const Icons = {
 function MainApp() {
   const { user, isAuthenticated, logout, api } = useAuth();
   
+  const [showReportsModal, setShowReportsModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [financialData, setFinancialData] = useState(null);
   const [selectedYear, setSelectedYear] = useState('');
@@ -581,21 +583,13 @@ function MainApp() {
               <h3>Reportes</h3>
               <ul>
                 <li>
-                  <div className="nav-item" data-tooltip="Reporte Liquidez">
+                  <div
+                    className="nav-item"
+                    onClick={() => setShowReportsModal(true)}
+                    data-tooltip="Reportes Especializados"
+                  >
                     <span className="nav-icon"><Icons.Report /></span>
-                    <span className="nav-text">Reporte de Liquidez</span>
-                  </div>
-                </li>
-                <li>
-                  <div className="nav-item" data-tooltip="Reporte Rentabilidad">
-                    <span className="nav-icon"><Icons.Report /></span>
-                    <span className="nav-text">Reporte de Rentabilidad</span>
-                  </div>
-                </li>
-                <li>
-                  <div className="nav-item" data-tooltip="Reporte Completo">
-                    <span className="nav-icon"><Icons.Report /></span>
-                    <span className="nav-text">Reporte Completo</span>
+                    <span className="nav-text">Ver Todos los Reportes</span>
                   </div>
                 </li>
               </ul>
@@ -988,6 +982,11 @@ function MainApp() {
       <ExportModal 
         isOpen={showExportModal}
         onClose={() => setShowExportModal(false)}
+        financialData={financialData}
+      />
+      <ReportsModal 
+        isOpen={showReportsModal}
+        onClose={() => setShowReportsModal(false)}
         financialData={financialData}
       />
     </div>
