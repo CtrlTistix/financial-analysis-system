@@ -36,12 +36,14 @@ app.add_middleware(
         "http://localhost:3000", 
         "http://127.0.0.1:5173",
         "http://127.0.0.1:3000",
-        "https://*.vercel.app",
         "https://financial-analysis-system-two.vercel.app",
+        "https://financial-analysis-system-475u3dd67-ctrltistixs-projects.vercel.app",  # Añadir URL de preview
+        "https://*.vercel.app",  # Permitir todos los subdominios de Vercel
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 # Inicializar base de datos al inicio
@@ -89,8 +91,9 @@ def read_root():
         "message": "🚀 Financial Analysis API is running!", 
         "status": "success",
         "openai_status": "available" if OPENAI_AVAILABLE else "fallback_mode",
-        "version": "2.0",
+        "version": "2.1",
         "authentication": "enabled",
+        "password_reset": "enabled",
         "features": [
             "Indicadores de Liquidez",
             "Indicadores de Rentabilidad",
@@ -102,7 +105,8 @@ def read_root():
             "Exportación a Excel",
             "ChatBot con IA",
             "Sistema de Autenticación",
-            "Gestión de Usuarios"
+            "Gestión de Usuarios",
+            "Restablecimiento de Contraseña"
         ]
     }
 

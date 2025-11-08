@@ -18,7 +18,7 @@ from app.model import User, ActionType
 from app.schemas import LoginResponse, UserResponse
 from app.schemas import PasswordResetRequest, PasswordResetValidate, PasswordResetConfirm
 from app.email_service import EmailService
-
+from app.models import PasswordResetToken
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
@@ -210,27 +210,18 @@ async def request_password_reset(
 ):
     """
     Solicitar restablecimiento de contraseña
-    
-    Envía un email con un link para restablecer la contraseña
-    - **email**: Email del usuario registrado
-    
-    Siempre retorna éxito para evitar enumeración de usuarios
     """
-    # Buscar usuario por email
     user = AuthService.get_user_by_email(db, reset_request.email)
     
     if user and user.is_active:
-        # Crear token de reset
         reset_token = AuthService.create_password_reset_token(db, user.id)
         
-        # Enviar email
         email_sent = EmailService.send_password_reset_email(
             to_email=user.email,
             username=user.username,
             reset_token=reset_token.token
         )
         
-        # Crear log de auditoría
         AuthService.create_audit_log(
             db=db,
             user_id=user.id,
@@ -242,8 +233,8 @@ async def request_password_reset(
         
         if not email_sent:
             print(f"⚠️ Email service not configured. Reset token: {reset_token.token}")
+            print(f"🔗 Reset URL: https://financial-analysis-system-two.vercel.app/reset-password?token={reset_token.token}")
     
-    # Siempre retornar éxito para evitar enumeración de usuarios
     return MessageResponse(
         message="If the email exists, a password reset link has been sent",
         detail="Please check your email for instructions to reset your password"
@@ -256,10 +247,6 @@ async def validate_reset_token(
 ):
     """
     Validar si un token de reset es válido
-    
-    - **token**: Token de reset de contraseña
-    
-    Útil para verificar el token antes de mostrar el formulario
     """
     reset_token = AuthService.verify_reset_token(db, token_data.token)
     
@@ -284,11 +271,7 @@ async def reset_password(
 ):
     """
     Restablecer contraseña usando token válido
-    
-    - **token**: Token de reset recibido por email
-    - **new_password**: Nueva contraseña (mínimo 6 caracteres)
     """
-    # Verificar y resetear contraseña
     success = AuthService.reset_password_with_token(
         db, 
         reset_data.token, 
@@ -301,7 +284,6 @@ async def reset_password(
             detail="Invalid or expired reset token"
         )
     
-    # Obtener usuario para logs
     reset_token = db.query(PasswordResetToken).filter(
         PasswordResetToken.token == reset_data.token
     ).first()
@@ -310,7 +292,6 @@ async def reset_password(
         user = db.query(User).filter(User.id == reset_token.user_id).first()
         
         if user:
-            # Crear log de auditoría
             AuthService.create_audit_log(
                 db=db,
                 user_id=user.id,
@@ -320,7 +301,6 @@ async def reset_password(
                 user_agent=get_user_agent(request)
             )
             
-            # Enviar notificación de cambio de contraseña
             EmailService.send_password_changed_notification(
                 to_email=user.email,
                 username=user.username

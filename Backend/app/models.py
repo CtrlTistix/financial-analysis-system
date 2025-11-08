@@ -62,7 +62,7 @@ class Session(Base):
     session_token = Column(String(500), unique=True, nullable=False, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     expires_at = Column(DateTime(timezone=True), nullable=False)
-    ip_address = Column(String(45), nullable=True)  # IPv6 compatible
+    ip_address = Column(String(45), nullable=True)
     user_agent = Column(Text, nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
 

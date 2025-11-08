@@ -17,7 +17,7 @@ SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 SMTP_USERNAME = os.getenv("SMTP_USERNAME", "")
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
 FROM_EMAIL = os.getenv("FROM_EMAIL", SMTP_USERNAME)
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "https://financial-analysis-system-two.vercel.app")
 
 class EmailService:
     """Servicio para enviar emails"""
@@ -31,15 +31,6 @@ class EmailService:
     ) -> bool:
         """
         Enviar email usando SMTP
-        
-        Args:
-            to_email: Email del destinatario
-            subject: Asunto del email
-            html_content: Contenido HTML del email
-            text_content: Contenido texto plano (opcional)
-            
-        Returns:
-            True si se envió correctamente, False si falló
         """
         # Verificar si el servicio de email está configurado
         if not SMTP_USERNAME or not SMTP_PASSWORD:
@@ -86,14 +77,6 @@ class EmailService:
     ) -> bool:
         """
         Enviar email de restablecimiento de contraseña
-        
-        Args:
-            to_email: Email del usuario
-            username: Nombre de usuario
-            reset_token: Token de reset generado
-            
-        Returns:
-            True si se envió correctamente
         """
         reset_url = f"{FRONTEND_URL}/reset-password?token={reset_token}"
 
