@@ -16,6 +16,9 @@ from app.dependencies import get_db, get_current_active_user, get_client_ip, get
 from app.auth_service import AuthService, ACCESS_TOKEN_EXPIRE_MINUTES
 from app.model import User, ActionType
 from app.schemas import LoginResponse, UserResponse
+from app.schemas import PasswordResetRequest, PasswordResetValidate, PasswordResetConfirm
+from app.email_service import EmailService
+
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
@@ -195,4 +198,135 @@ async def validate_token(
     return MessageResponse(
         message="Token is valid",
         detail=f"User {current_user.username} is authenticated"
+    )
+
+# ============ ENDPOINTS DE RESET DE CONTRASEÑA ============
+
+@router.post("/forgot-password", response_model=MessageResponse, status_code=status.HTTP_200_OK)
+async def request_password_reset(
+    reset_request: PasswordResetRequest,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """
+    Solicitar restablecimiento de contraseña
+    
+    Envía un email con un link para restablecer la contraseña
+    - **email**: Email del usuario registrado
+    
+    Siempre retorna éxito para evitar enumeración de usuarios
+    """
+    # Buscar usuario por email
+    user = AuthService.get_user_by_email(db, reset_request.email)
+    
+    if user and user.is_active:
+        # Crear token de reset
+        reset_token = AuthService.create_password_reset_token(db, user.id)
+        
+        # Enviar email
+        email_sent = EmailService.send_password_reset_email(
+            to_email=user.email,
+            username=user.username,
+            reset_token=reset_token.token
+        )
+        
+        # Crear log de auditoría
+        AuthService.create_audit_log(
+            db=db,
+            user_id=user.id,
+            action_type=ActionType.PASSWORD_RESET_REQUEST,
+            description=f"Password reset requested for user: {user.username}",
+            ip_address=get_client_ip(request),
+            user_agent=get_user_agent(request)
+        )
+        
+        if not email_sent:
+            print(f"⚠️ Email service not configured. Reset token: {reset_token.token}")
+    
+    # Siempre retornar éxito para evitar enumeración de usuarios
+    return MessageResponse(
+        message="If the email exists, a password reset link has been sent",
+        detail="Please check your email for instructions to reset your password"
+    )
+
+@router.post("/validate-reset-token", response_model=MessageResponse, status_code=status.HTTP_200_OK)
+async def validate_reset_token(
+    token_data: PasswordResetValidate,
+    db: Session = Depends(get_db)
+):
+    """
+    Validar si un token de reset es válido
+    
+    - **token**: Token de reset de contraseña
+    
+    Útil para verificar el token antes de mostrar el formulario
+    """
+    reset_token = AuthService.verify_reset_token(db, token_data.token)
+    
+    if not reset_token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired reset token"
+        )
+    
+    user = db.query(User).filter(User.id == reset_token.user_id).first()
+    
+    return MessageResponse(
+        message="Token is valid",
+        detail=f"Token valid for user: {user.username}"
+    )
+
+@router.post("/reset-password", response_model=MessageResponse, status_code=status.HTTP_200_OK)
+async def reset_password(
+    reset_data: PasswordResetConfirm,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """
+    Restablecer contraseña usando token válido
+    
+    - **token**: Token de reset recibido por email
+    - **new_password**: Nueva contraseña (mínimo 6 caracteres)
+    """
+    # Verificar y resetear contraseña
+    success = AuthService.reset_password_with_token(
+        db, 
+        reset_data.token, 
+        reset_data.new_password
+    )
+    
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired reset token"
+        )
+    
+    # Obtener usuario para logs
+    reset_token = db.query(PasswordResetToken).filter(
+        PasswordResetToken.token == reset_data.token
+    ).first()
+    
+    if reset_token:
+        user = db.query(User).filter(User.id == reset_token.user_id).first()
+        
+        if user:
+            # Crear log de auditoría
+            AuthService.create_audit_log(
+                db=db,
+                user_id=user.id,
+                action_type=ActionType.PASSWORD_RESET_COMPLETE,
+                description=f"Password reset completed for user: {user.username}",
+                ip_address=get_client_ip(request),
+                user_agent=get_user_agent(request)
+            )
+            
+            # Enviar notificación de cambio de contraseña
+            EmailService.send_password_changed_notification(
+                to_email=user.email,
+                username=user.username
+            )
+    
+    return MessageResponse(
+        message="Password reset successful",
+        detail="Your password has been updated. You can now login with your new password"
     )

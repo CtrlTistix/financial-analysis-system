@@ -1,6 +1,6 @@
 """
 Servicio de Autenticación y Autorización
-Maneja login, tokens JWT, y validación de usuarios
+Maneja login, tokens JWT, reset de contraseña y validación de usuarios
 """
 from datetime import datetime, timedelta
 from typing import Optional
@@ -8,7 +8,7 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
-from app.model import User, Session as UserSession, AuditLog, UserRole, ActionType
+from app.model import User, Session as UserSession, AuditLog, UserRole, ActionType, PasswordResetToken
 import secrets
 import os
 
@@ -17,6 +17,7 @@ SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 REFRESH_TOKEN_EXPIRE_DAYS = 7
+RESET_TOKEN_EXPIRE_HOURS = 1  # Token de reset expira en 1 hora
 
 # Contexto de hashing de contraseñas
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -180,3 +181,87 @@ class AuthService:
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Not enough permissions. Admin role required."
             )
+
+    # ============ MÉTODOS PARA RESET DE CONTRASEÑA ============
+
+    @staticmethod
+    def generate_reset_token() -> str:
+        """Generar token seguro de 32 caracteres para reset de contraseña"""
+        return secrets.token_urlsafe(32)
+
+    @staticmethod
+    def create_password_reset_token(db: Session, user_id: int) -> PasswordResetToken:
+        """
+        Crear token de reset de contraseña
+        Invalida tokens anteriores del usuario
+        """
+        # Invalidar tokens anteriores no usados
+        db.query(PasswordResetToken).filter(
+            PasswordResetToken.user_id == user_id,
+            PasswordResetToken.used == False,
+            PasswordResetToken.expires_at > datetime.utcnow()
+        ).update({"used": True})
+        db.commit()
+
+        # Crear nuevo token
+        token = AuthService.generate_reset_token()
+        expires_at = datetime.utcnow() + timedelta(hours=RESET_TOKEN_EXPIRE_HOURS)
+
+        reset_token = PasswordResetToken(
+            user_id=user_id,
+            token=token,
+            expires_at=expires_at,
+            used=False
+        )
+        
+        db.add(reset_token)
+        db.commit()
+        db.refresh(reset_token)
+        
+        return reset_token
+
+    @staticmethod
+    def verify_reset_token(db: Session, token: str) -> Optional[PasswordResetToken]:
+        """
+        Verificar si el token de reset es válido
+        Retorna el token si es válido, None si no lo es
+        """
+        reset_token = db.query(PasswordResetToken).filter(
+            PasswordResetToken.token == token,
+            PasswordResetToken.used == False,
+            PasswordResetToken.expires_at > datetime.utcnow()
+        ).first()
+        
+        return reset_token
+
+    @staticmethod
+    def reset_password_with_token(db: Session, token: str, new_password: str) -> bool:
+        """
+        Resetear contraseña usando token válido
+        Marca el token como usado
+        """
+        reset_token = AuthService.verify_reset_token(db, token)
+        
+        if not reset_token:
+            return False
+        
+        # Obtener usuario
+        user = db.query(User).filter(User.id == reset_token.user_id).first()
+        if not user:
+            return False
+        
+        # Actualizar contraseña
+        user.password_hash = AuthService.get_password_hash(new_password)
+        
+        # Marcar token como usado
+        reset_token.used = True
+        reset_token.used_at = datetime.utcnow()
+        
+        db.commit()
+        
+        return True
+
+    @staticmethod
+    def get_user_by_email(db: Session, email: str) -> Optional[User]:
+        """Obtener usuario por email"""
+        return db.query(User).filter(User.email == email).first()

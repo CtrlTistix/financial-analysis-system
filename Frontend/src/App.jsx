@@ -13,6 +13,8 @@ import './App.css';
 import ExportModal from './components/ExportModal';
 import ReportsModal from './components/ReportsModal';
 import ReportsView from './components/ReportsView';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 
 const API_BASE = 'https://financial-analysis-system-qhnz.onrender.com';
 
@@ -1003,7 +1005,8 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />
-          <Route path="/*" element={<MainApp />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>
