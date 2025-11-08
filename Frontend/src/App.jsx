@@ -175,7 +175,6 @@ function MainApp() {
     const file = event.target.files[0];
     if (!file) return;
 
-    // Verificar autenticación
     if (!isAuthenticated) {
       setError('Debes iniciar sesión para cargar archivos');
       addChatMessage('bot', 'Por favor inicia sesión para cargar archivos Excel.');
@@ -188,7 +187,6 @@ function MainApp() {
       const formData = new FormData();
       formData.append('file', file);
 
-      // Usar api con autenticación
       const response = await api.post('/upload', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
@@ -218,7 +216,6 @@ function MainApp() {
   const handleSendMessage = async () => {
     if (!userInput.trim()) return;
     
-    // Verificar autenticación
     if (!isAuthenticated) {
       addChatMessage('bot', 'Debes iniciar sesión para usar el chat.');
       return;
@@ -467,7 +464,6 @@ function MainApp() {
           </div>
 
           <div className="header-actions">
-            {/* Mostrar info del usuario si está autenticado */}
             {isAuthenticated && user && (
               <div className="user-info" style={{ 
                 display: 'flex', 
@@ -620,7 +616,6 @@ function MainApp() {
               </ul>
             </div>
 
-            {/* Agregar opción de Admin si es admin */}
             {isAuthenticated && user?.role === 'admin' && (
               <div className="nav-section">
                 <h3>Administración</h3>
@@ -641,7 +636,6 @@ function MainApp() {
           </nav>
         </aside>
 
-        {/* Overlay para móvil */}
         {sidebarOpen && window.innerWidth < 992 && (
           <div 
             className="sidebar-overlay active"
@@ -651,9 +645,8 @@ function MainApp() {
 
         {/* Main Content */}
         <main className={`main-content ${chatOpen && chatMode === 'fixed' ? 'with-chat' : ''}`}>
-          {/* Mostrar AdminPanel si es admin y está en esa vista */}
           {currentView === 'reports' ? (
-            <ReportsView  financialData={financialData} />
+            <ReportsView financialData={financialData} />
           ) : currentView === 'admin' ? (
             <AdminPanel />
           ) : currentView === 'requirements' ? (
@@ -998,15 +991,20 @@ function MainApp() {
   );
 }
 
-// Wrapper principal con Router y AuthProvider
+// ============ WRAPPER PRINCIPAL CON RUTAS ============
 function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
         <Routes>
+          {/* Rutas de autenticación */}
           <Route path="/login" element={<Login />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          
+          {/* Ruta principal de la aplicación */}
+          <Route path="/" element={<MainApp />} />
+          <Route path="/*" element={<MainApp />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>
