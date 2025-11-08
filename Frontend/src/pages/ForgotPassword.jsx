@@ -7,7 +7,7 @@ import { Link } from 'react-router-dom';
 import axios from 'axios';
 import './ForgotPassword.css';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_URL = import.meta.env.VITE_API_URL || 'https://financial-analysis-system-qhnz.onrender.com';
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState('');
