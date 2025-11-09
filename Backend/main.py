@@ -39,6 +39,7 @@ app.add_middleware(
         "https://financial-analysis-system-two.vercel.app",
         "https://financial-analysis-system-475u3dd67-ctrltistixs-projects.vercel.app",  # Añadir URL de preview
         "https://*.vercel.app",  # Permitir todos los subdominios de Vercel
+        "https://financial-analysis-system-qhnz.onrender.com",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -57,6 +58,16 @@ async def startup_event():
 OPENAI_AVAILABLE = False
 client = None
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+try:
+        from app.models import Base
+        from app.database import engine
+        Base.metadata.create_all(bind=engine)
+        print("✅ Tablas de base de datos verificadas/creadas")
+except Exception as e:
+        print(f"⚠️ Error creando tablas: {e}")
+    
+print("✅ Base de datos inicializada")
 
 try:
     from openai import OpenAI

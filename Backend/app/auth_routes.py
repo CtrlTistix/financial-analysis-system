@@ -1,6 +1,6 @@
 """
 Rutas de Autenticación
-Endpoints: login, logout, refresh token, cambio de contraseña
+Endpoints: login, logout, refresh token, cambio de contraseña, reset de contraseña
 """
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
@@ -10,15 +10,16 @@ from app.schemas import (
     LoginResponse, 
     MessageResponse, 
     UserResponse,
-    UserChangePassword
+    UserChangePassword,
+    PasswordResetRequest,
+    PasswordResetValidate,
+    PasswordResetConfirm
 )
 from app.dependencies import get_db, get_current_active_user, get_client_ip, get_user_agent
 from app.auth_service import AuthService, ACCESS_TOKEN_EXPIRE_MINUTES
-from app.model import User, ActionType
+from app.models import User, ActionType, PasswordResetToken
 from app.schemas import LoginResponse, UserResponse
-from app.schemas import PasswordResetRequest, PasswordResetValidate, PasswordResetConfirm
 from app.email_service import EmailService
-from app.models import PasswordResetToken
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
@@ -28,19 +29,10 @@ async def login(
     request: Request,
     db: Session = Depends(get_db)
 ):
-    """
-    Login de usuario
-    
-    - **username**: Nombre de usuario
-    - **password**: Contraseña
-    
-    Retorna token JWT y datos del usuario
-    """
-    # Autenticar usuario
+    """Login de usuario"""
     user = AuthService.authenticate_user(db, login_data.username, login_data.password)
     
     if not user:
-        # Crear log de intento fallido
         AuthService.create_audit_log(
             db=db,
             user_id=None,
@@ -56,14 +48,12 @@ async def login(
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    # Crear token JWT
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = AuthService.create_access_token(
         data={"sub": str(user.id), "username": user.username, "role": user.role.value},
         expires_delta=access_token_expires
     )
     
-    # Crear sesión en la base de datos
     AuthService.create_user_session(
         db=db,
         user_id=user.id,
@@ -72,10 +62,8 @@ async def login(
         user_agent=get_user_agent(request)
     )
     
-    # Actualizar última fecha de login
     AuthService.update_last_login(db, user.id)
     
-    # Crear log de auditoría
     AuthService.create_audit_log(
         db=db,
         user_id=user.id,
@@ -85,7 +73,6 @@ async def login(
         user_agent=get_user_agent(request)
     )
     
-    # Preparar respuesta
     return LoginResponse(
         access_token=access_token,
         token_type="bearer",
@@ -99,11 +86,7 @@ async def logout(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    """
-    Logout de usuario
-    Invalida el token actual
-    """
-    # Obtener token del header
+    """Logout de usuario"""
     auth_header = request.headers.get("Authorization")
     if not auth_header or not auth_header.startswith("Bearer "):
         raise HTTPException(
@@ -112,11 +95,8 @@ async def logout(
         )
     
     token = auth_header.split(" ")[1]
-    
-    # Invalidar sesión
     AuthService.invalidate_session(db, token)
     
-    # Crear log de auditoría
     AuthService.create_audit_log(
         db=db,
         user_id=current_user.id,
@@ -135,10 +115,7 @@ async def logout(
 async def get_current_user_info(
     current_user: User = Depends(get_current_active_user)
 ):
-    """
-    Obtener información del usuario actual
-    Requiere autenticación
-    """
+    """Obtener información del usuario actual"""
     return UserResponse.from_orm(current_user)
 
 @router.post("/change-password", response_model=MessageResponse, status_code=status.HTTP_200_OK)
@@ -148,31 +125,22 @@ async def change_password(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    """
-    Cambiar contraseña del usuario actual
-    
-    - **current_password**: Contraseña actual
-    - **new_password**: Nueva contraseña (mínimo 6 caracteres)
-    """
-    # Verificar contraseña actual
+    """Cambiar contraseña del usuario actual"""
     if not AuthService.verify_password(password_data.current_password, current_user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Current password is incorrect"
         )
     
-    # Verificar que la nueva contraseña sea diferente
     if AuthService.verify_password(password_data.new_password, current_user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="New password must be different from current password"
         )
     
-    # Actualizar contraseña
     current_user.password_hash = AuthService.get_password_hash(password_data.new_password)
     db.commit()
     
-    # Crear log de auditoría
     AuthService.create_audit_log(
         db=db,
         user_id=current_user.id,
@@ -191,10 +159,7 @@ async def change_password(
 async def validate_token(
     current_user: User = Depends(get_current_active_user)
 ):
-    """
-    Validar si el token actual es válido
-    Útil para verificar la sesión en el frontend
-    """
+    """Validar si el token actual es válido"""
     return MessageResponse(
         message="Token is valid",
         detail=f"User {current_user.username} is authenticated"
@@ -208,46 +173,59 @@ async def request_password_reset(
     request: Request,
     db: Session = Depends(get_db)
 ):
-    """
-    Solicitar restablecimiento de contraseña
-    """
-    user = AuthService.get_user_by_email(db, reset_request.email)
-    
-    if user and user.is_active:
-        reset_token = AuthService.create_password_reset_token(db, user.id)
+    """Solicitar restablecimiento de contraseña"""
+    try:
+        print(f"📧 Password reset requested for: {reset_request.email}")
         
-        email_sent = EmailService.send_password_reset_email(
-            to_email=user.email,
-            username=user.username,
-            reset_token=reset_token.token
+        user = AuthService.get_user_by_email(db, reset_request.email)
+        
+        if user and user.is_active:
+            print(f"✅ User found: {user.username}")
+            
+            reset_token = AuthService.create_password_reset_token(db, user.id)
+            print(f"🔑 Token created: {reset_token.token[:20]}...")
+            
+            email_sent = EmailService.send_password_reset_email(
+                to_email=user.email,
+                username=user.username,
+                reset_token=reset_token.token
+            )
+            
+            AuthService.create_audit_log(
+                db=db,
+                user_id=user.id,
+                action_type=ActionType.PASSWORD_RESET_REQUEST,
+                description=f"Password reset requested for user: {user.username}",
+                ip_address=get_client_ip(request),
+                user_agent=get_user_agent(request)
+            )
+            
+            if not email_sent:
+                print(f"⚠️ Email service not configured")
+                print(f"🔗 Reset URL: https://financial-analysis-system-two.vercel.app/reset-password?token={reset_token.token}")
+        else:
+            print(f"⚠️ User not found or inactive: {reset_request.email}")
+        
+        return MessageResponse(
+            message="If the email exists, a password reset link has been sent",
+            detail="Please check your email for instructions to reset your password"
         )
         
-        AuthService.create_audit_log(
-            db=db,
-            user_id=user.id,
-            action_type=ActionType.PASSWORD_RESET_REQUEST,
-            description=f"Password reset requested for user: {user.username}",
-            ip_address=get_client_ip(request),
-            user_agent=get_user_agent(request)
+    except Exception as e:
+        print(f"❌ ERROR in forgot-password: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error processing password reset: {str(e)}"
         )
-        
-        if not email_sent:
-            print(f"⚠️ Email service not configured. Reset token: {reset_token.token}")
-            print(f"🔗 Reset URL: https://financial-analysis-system-two.vercel.app/reset-password?token={reset_token.token}")
-    
-    return MessageResponse(
-        message="If the email exists, a password reset link has been sent",
-        detail="Please check your email for instructions to reset your password"
-    )
 
 @router.post("/validate-reset-token", response_model=MessageResponse, status_code=status.HTTP_200_OK)
 async def validate_reset_token(
     token_data: PasswordResetValidate,
     db: Session = Depends(get_db)
 ):
-    """
-    Validar si un token de reset es válido
-    """
+    """Validar si un token de reset es válido"""
     reset_token = AuthService.verify_reset_token(db, token_data.token)
     
     if not reset_token:
@@ -269,9 +247,7 @@ async def reset_password(
     request: Request,
     db: Session = Depends(get_db)
 ):
-    """
-    Restablecer contraseña usando token válido
-    """
+    """Restablecer contraseña usando token válido"""
     success = AuthService.reset_password_with_token(
         db, 
         reset_data.token, 

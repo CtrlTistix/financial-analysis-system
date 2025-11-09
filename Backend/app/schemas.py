@@ -144,29 +144,15 @@ class ErrorResponse(BaseModel):
             }
         }
 
-# ============ PASSWORD RESET SCHEMAS ============
+# ============ SCHEMAS PARA RESET DE CONTRASEÑA ============
 
 class PasswordResetRequest(BaseModel):
     """Schema para solicitar reset de contraseña"""
     email: EmailStr
-    
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "email": "usuario@ejemplo.com"
-            }
-        }
 
 class PasswordResetValidate(BaseModel):
     """Schema para validar token de reset"""
     token: str
-    
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "token": "abc123def456..."
-            }
-        }
 
 class PasswordResetConfirm(BaseModel):
     """Schema para confirmar reset con nueva contraseña"""
@@ -178,11 +164,3 @@ class PasswordResetConfirm(BaseModel):
         if len(v) < 6:
             raise ValueError('Password must be at least 6 characters long')
         return v
-    
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "token": "abc123def456...",
-                "new_password": "newSecurePassword123"
-            }
-        }
