@@ -15,7 +15,6 @@ import ReportsModal from './components/ReportsModal';
 import ReportsView from './components/ReportsView';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
-import ConfigurationPage from './pages/ConfigurationPage';
 
 const API_BASE = 'https://financial-analysis-system-qhnz.onrender.com';
 
@@ -658,7 +657,7 @@ function MainApp() {
             <Requirements />
           ) : currentView === 'horizontal' ? (
             <AnalysisView data={financialData} />
-          ) : currentView === 'configuracion' ? (
+          ) : currentView === 'charts' ? (
             <>
               <section className="dashboard-header">
                 <div className="dashboard-title">
