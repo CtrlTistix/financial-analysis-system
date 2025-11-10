@@ -206,3 +206,39 @@ class ConfigurationResponse(ConfigurationBase):
 
     class Config:
         from_attributes = True
+
+# Al final del archivo agregar:
+   
+class ConfigurationBase(BaseModel):
+    nombre_empresa: Optional[str] = None
+    periodo_fiscal: Optional[str] = "2020"
+    moneda: Optional[str] = "USD"
+    dias_anio: int = 360
+    metodo_depreciacion: Optional[str] = "lineal"
+    fila_inicio: int = 2
+    permitir_filas_vacias: bool = True
+    formato_numeros: Optional[str] = "europeo"
+    incluir_graficos: bool = True
+    formato_reporte: Optional[str] = "xlsx"
+    incluir_interpretacion: bool = True
+    notificaciones_email: bool = True
+    email_admin: Optional[str] = None
+    requiere_autenticacion: bool = True
+    expiracion_sesion: int = 60
+    chat_habilitado: bool = True
+    modelo_ia: Optional[str] = "gpt-4"
+    contexto_corporativo: Optional[str] = None
+
+class ConfigurationCreate(ConfigurationBase):
+    pass
+
+class ConfigurationUpdate(ConfigurationBase):
+    pass
+
+class ConfigurationResponse(ConfigurationBase):
+    id: int
+    created_at: datetime
+    updated_at: Optional[datetime]
+
+    class Config:
+        from_attributes = True
