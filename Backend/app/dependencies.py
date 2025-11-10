@@ -9,6 +9,7 @@ from typing import Generator
 from app.database import SessionLocal
 from app.auth_service import AuthService
 from app.model import User, UserRole
+from app.model import User, Session, AuditLog, Configuration
 
 # Seguridad HTTP Bearer
 security = HTTPBearer()
@@ -93,3 +94,14 @@ def get_client_ip(request: Request) -> str:
 def get_user_agent(request: Request) -> str:
     """Obtener User-Agent del cliente"""
     return request.headers.get("User-Agent", "unknown")
+
+def require_admin(current_user: User = Depends(get_current_active_user)) -> User:
+    """
+    Verificar que el usuario actual sea administrador
+    """
+    if current_user.role != UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Solo los administradores pueden realizar esta acción"
+        )
+    return current_user

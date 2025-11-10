@@ -7,6 +7,8 @@ from typing import Optional
 from datetime import datetime
 from enum import Enum
 from pydantic import BaseModel, EmailStr, validator
+from typing import Optional
+from pydantic import BaseModel, Field
 # ============ ENUMS ============
 
 class UserRoleEnum(str, Enum):
@@ -164,3 +166,43 @@ class PasswordResetConfirm(BaseModel):
         if len(v) < 6:
             raise ValueError('Password must be at least 6 characters long')
         return v
+    
+# ============ CONFIGURATION SCHEMAS ============
+
+class ConfigurationBase(BaseModel):
+    """Schema base de configuración"""
+    nombre_empresa: Optional[str] = None
+    periodo_fiscal: Optional[str] = "2020"
+    moneda: Optional[str] = "USD"
+    dias_anio: int = 360
+    metodo_depreciacion: Optional[str] = "lineal"
+    fila_inicio: int = 2
+    permitir_filas_vacias: bool = True
+    formato_numeros: Optional[str] = "europeo"
+    incluir_graficos: bool = True
+    formato_reporte: Optional[str] = "xlsx"
+    incluir_interpretacion: bool = True
+    notificaciones_email: bool = True
+    email_admin: Optional[str] = None
+    requiere_autenticacion: bool = True
+    expiracion_sesion: int = 60
+    chat_habilitado: bool = True
+    modelo_ia: Optional[str] = "gpt-4"
+    contexto_corporativo: Optional[str] = None
+
+class ConfigurationCreate(ConfigurationBase):
+    """Schema para crear configuración"""
+    pass
+
+class ConfigurationUpdate(ConfigurationBase):
+    """Schema para actualizar configuración"""
+    pass
+
+class ConfigurationResponse(ConfigurationBase):
+    """Schema de respuesta de configuración"""
+    id: int
+    created_at: datetime
+    updated_at: Optional[datetime]
+
+    class Config:
+        from_attributes = True

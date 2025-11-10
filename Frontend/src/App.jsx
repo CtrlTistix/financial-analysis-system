@@ -15,6 +15,7 @@ import ReportsModal from './components/ReportsModal';
 import ReportsView from './components/ReportsView';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import ConfigurationPage from './pages/ConfigurationPage';
 
 const API_BASE = 'https://financial-analysis-system-qhnz.onrender.com';
 
@@ -608,7 +609,11 @@ function MainApp() {
                   </div>
                 </li>
                 <li>
-                  <div className="nav-item" data-tooltip="Configuración">
+                  <div
+                    className={`nav-item ${currentView === 'configuracion' ? 'active' : ''}`}
+                    onClick={() => handleNavClick('configuracion')}
+                    data-tooltip="Configuración"
+                  >
                     <span className="nav-icon"><Icons.Settings /></span>
                     <span className="nav-text">Configuración</span>
                   </div>
