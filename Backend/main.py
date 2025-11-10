@@ -10,12 +10,13 @@ import os
 from dotenv import load_dotenv
 from datetime import datetime
 import uvicorn
+from app.config_routes import router as config_router
 
 load_dotenv()
 
 from app.services.analysis_service import AnalysisService
 from app.services.export_service import ExportService
-
+from app.model import User, Session, AuditLog, Configuration 
 # Importar sistema de autenticación
 from app.database import init_db, get_db
 from app.auth_routes import router as auth_router
@@ -26,6 +27,7 @@ from app.export_routes import router as export_router, set_last_analysis
 from app.reports_routes import router as reports_router, set_last_analysis as set_reports_analysis
 
 app = FastAPI(title="Financial Analysis API")
+app.include_router(config_router)
 app.include_router(export_router)
 app.include_router(reports_router)
 # CORS actualizado para incluir tu dominio de Vercel

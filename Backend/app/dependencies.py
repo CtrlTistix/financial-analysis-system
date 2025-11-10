@@ -9,7 +9,7 @@ from typing import Generator
 from app.database import SessionLocal
 from app.auth_service import AuthService
 from app.model import User, UserRole
-from app.model import User, Session, AuditLog, Configuration
+from app.model import User, Session, AuditLog
 
 # Seguridad HTTP Bearer
 security = HTTPBearer()
@@ -17,7 +17,7 @@ security = HTTPBearer()
 def get_db() -> Generator:
     """
     Dependency para obtener sesión de base de datos
-    Se cierra automáticamente después de cada request
+    Se cierra automáticamente después de cada requestt
     """
     db = SessionLocal()
     try:

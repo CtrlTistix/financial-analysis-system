@@ -658,6 +658,8 @@ function MainApp() {
             <Requirements />
           ) : currentView === 'horizontal' ? (
             <AnalysisView data={financialData} />
+          ) : currentView === 'configuracion' ? (
+            <ConfigurationPage />
           ) : currentView === 'charts' ? (
             <>
               <section className="dashboard-header">
