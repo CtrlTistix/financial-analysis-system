@@ -659,8 +659,6 @@ function MainApp() {
           ) : currentView === 'horizontal' ? (
             <AnalysisView data={financialData} />
           ) : currentView === 'configuracion' ? (
-            <ConfigurationPage />
-          ) : currentView === 'charts' ? (
             <>
               <section className="dashboard-header">
                 <div className="dashboard-title">

@@ -10,7 +10,6 @@ import os
 from dotenv import load_dotenv
 from datetime import datetime
 import uvicorn
-from app.config_routes import router as config_router
 
 load_dotenv()
 
