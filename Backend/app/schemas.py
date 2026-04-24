@@ -166,5 +166,3 @@ class PasswordResetConfirm(BaseModel):
         if len(v) < 6:
             raise ValueError('Password must be at least 6 characters long')
         return v
-    
-t

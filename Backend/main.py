@@ -198,7 +198,13 @@ async def upload_file(
             raise HTTPException(status_code=400, detail="Solo se permiten archivos Excel")
         
         contents = await file.read()
-        df = pd.read_excel(io.BytesIO(contents))
+        try:
+            df = pd.read_excel(io.BytesIO(contents), engine='openpyxl')
+        except Exception as excel_err:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Error al leer el archivo Excel: {str(excel_err)}. Asegúrate de que sea un archivo .xlsx válido."
+            )
         
         print(f"\n{'='*60}")
         print(f"📄 Archivo recibido: {file.filename}")
