@@ -8,8 +8,7 @@ from sqlalchemy.orm import Session
 from typing import Generator
 from app.database import SessionLocal
 from app.auth_service import AuthService
-from app.model import User, UserRole
-from app.model import User, Session, AuditLog
+from app.model import User, UserRole, AuditLog
 
 # Seguridad HTTP Bearer
 security = HTTPBearer()
